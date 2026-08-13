@@ -19,13 +19,13 @@ npm run build
 
 ## 模型配置
 
-Side Panel 中填写：
+点击 Side Panel 的“打开设置”，或在扩展详情页打开“扩展程序选项”，进入独立设置页填写：
 
 - OpenAI-compatible API 的 Base URL，例如 `https://api.openai.com/v1`。
 - 模型 ID。
 - API Key。
 
-三项配置会自动保存到 `chrome.storage.local`；保存完成后配置区自动折叠隐藏，点击“编辑”可重新显示。关闭 Side Panel 会停止当前 Agent、清理 Chrome handles 和 Debugger sessions，并丢弃聊天状态与当前运行消息；模型配置会保留。
+点击“保存配置”后，三项配置才会写入 `chrome.storage.local`；编辑过程不会自动保存。关闭 Side Panel 会停止当前 Agent、清理 Chrome handles 和 Debugger sessions，并丢弃聊天状态与当前运行消息；模型配置会保留。
 
 Agent 的 Thinking、Assistant 流式 Markdown、工具调用和工具结果按事件到达顺序显示。Thinking 和工具调用运行时展开，完成后自动折叠；消息区固定在侧栏内部滚动，并在用户没有上滑时自动跟随底部。Assistant 文本不使用气泡样式。
 

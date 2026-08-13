@@ -11,10 +11,9 @@ import type {
   ToolActivity,
 } from "../types";
 import {
-  clearModelConfig,
+  MODEL_CONFIG_STORAGE_KEY,
   isCompleteModelConfig,
   loadModelConfig,
-  saveModelConfig,
 } from "./config";
 import "./styles.css";
 
@@ -41,6 +40,14 @@ function errorText(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+function toolLabel(activity: ToolActivity): string {
+  if (activity.input && typeof activity.input === "object" && !Array.isArray(activity.input)) {
+    const path = (activity.input as { path?: unknown }).path;
+    if (typeof path === "string" && path.trim()) return path;
+  }
+  return activity.toolName;
+}
+
 function Markdown({ text }: { text: string }) {
   const html = useMemo(() => marked.parse(text, { breaks: true, gfm: true }), [text]);
   return (
@@ -57,7 +64,7 @@ function ToolDetails({ activity }: { activity: ToolActivity }) {
     <details className={`activity ${activity.status}`} open={activity.status === "running" ? true : undefined}>
       <summary>
         <span className="activity-dot" />
-        <span>{activity.toolName}</span>
+        <span>{toolLabel(activity)}</span>
         <span className="activity-status">{activity.status}</span>
       </summary>
       <div className="activity-content">
@@ -123,63 +130,46 @@ export function App() {
   const bridge = useMemo(() => new ChromeBridge(), []);
   const [config, setConfig] = useState<ModelConfig>(initialConfig);
   const [configReady, setConfigReady] = useState(false);
-  const [configHidden, setConfigHidden] = useState(false);
-  const [configSaveState, setConfigSaveState] = useState<"dirty" | "saving" | "saved">("dirty");
   const [draft, setDraft] = useState("");
   const [timeline, setTimeline] = useState<TimelineItem[]>([]);
   const [modelMessages, setModelMessages] = useState<ModelMessage[]>([]);
   const [running, setRunning] = useState(false);
-  const [status, setStatus] = useState("就绪");
+  const [, setStatus] = useState("就绪");
   const abortRef = useRef<AbortController | null>(null);
   const chatScrollRef = useRef<HTMLElement | null>(null);
   const followChatRef = useRef(true);
 
   useEffect(() => {
     let active = true;
-    void loadModelConfig(initialConfig)
-      .then((stored) => {
+    const refreshConfig = async () => {
+      try {
+        const stored = await loadModelConfig(initialConfig);
         if (!active) return;
         setConfig(stored);
         setConfigReady(true);
-        if (isCompleteModelConfig(stored)) {
-          setConfigHidden(true);
-          setConfigSaveState("saved");
-        }
-      })
-      .catch((error) => {
+      } catch (error) {
         if (!active) return;
         setConfigReady(true);
         setStatus(`配置读取失败: ${errorText(error)}`);
-      });
+      }
+    };
+    const handleStorageChange = (
+      changes: { [key: string]: chrome.storage.StorageChange },
+      areaName: string,
+    ) => {
+      if (areaName === "local" && changes[MODEL_CONFIG_STORAGE_KEY]) {
+        void refreshConfig();
+      }
+    };
+
+    void refreshConfig();
+    chrome.storage.onChanged.addListener(handleStorageChange);
 
     return () => {
       active = false;
+      chrome.storage.onChanged.removeListener(handleStorageChange);
     };
   }, []);
-
-  useEffect(() => {
-    if (!configReady) return;
-
-    if (!isCompleteModelConfig(config)) {
-      setConfigSaveState("dirty");
-      return;
-    }
-
-    setConfigSaveState("saving");
-    const timer = window.setTimeout(() => {
-      void saveModelConfig(config)
-        .then(() => {
-          setConfigSaveState("saved");
-          setConfigHidden(true);
-        })
-        .catch((error) => {
-          setConfigSaveState("dirty");
-          setStatus(`配置保存失败: ${errorText(error)}`);
-        });
-    }, 650);
-
-    return () => window.clearTimeout(timer);
-  }, [config, configReady]);
 
   useEffect(() => {
     const stopAndDispose = () => {
@@ -198,7 +188,7 @@ export function App() {
     const element = chatScrollRef.current;
     if (!element) return;
     element.scrollTop = element.scrollHeight;
-  }, [timeline, configHidden]);
+  }, [timeline]);
 
   const handleChatScroll = (event: UIEvent<HTMLElement>) => {
     const element = event.currentTarget;
@@ -312,8 +302,7 @@ export function App() {
     const text = draft.trim();
     if (!text || running) return;
     if (!isCompleteModelConfig(config)) {
-      setConfigHidden(false);
-      setStatus("请先填写 Base URL、API Key 和模型 ID");
+      void chrome.runtime.openOptionsPage();
       return;
     }
 
@@ -350,90 +339,46 @@ export function App() {
     setStatus("正在停止");
   };
 
-  const clearConfig = async () => {
-    if (running) return;
-    try {
-      await clearModelConfig();
-      setConfig(initialConfig);
-      setConfigHidden(false);
-      setConfigSaveState("dirty");
-      setStatus("配置已清空");
-    } catch (error) {
-      setStatus(`配置清空失败: ${errorText(error)}`);
-    }
+  const openSettings = () => {
+    void chrome.runtime.openOptionsPage().catch((error) => {
+      setStatus(`设置页打开失败: ${errorText(error)}`);
+    });
   };
 
   return (
     <main className="app-shell">
       <header className="app-header">
         <div>
-          <div className="eyebrow">MV3 SIDE PANEL</div>
           <h1>Side Agent Runtime</h1>
         </div>
-        <span className={running ? "status-pill active" : "status-pill"}>{status}</span>
       </header>
 
       <section className="config-card" aria-label="模型配置">
-        {configHidden ? (
-          <div className="config-saved">
-            <div>
-              <strong>配置已保存</strong>
-              <span>Base URL、Model ID 和 API Key 已持久化并隐藏</span>
-            </div>
-            <div className="config-actions">
-              <button
-                type="button"
-                className="edit-config-button"
-                onClick={() => {
-                  setConfigHidden(false);
-                  setConfigSaveState("dirty");
-                }}
-                disabled={running}
-              >
-                编辑
-              </button>
-              <button
-                type="button"
-                className="clear-config-button"
-                onClick={() => void clearConfig()}
-                disabled={running}
-              >
-                清空
-              </button>
-            </div>
+        <div className="config-saved">
+          <div>
+            <strong>
+              {!configReady
+                ? "正在读取配置…"
+                : isCompleteModelConfig(config)
+                  ? "配置已保存"
+                  : "尚未配置模型"}
+            </strong>
+            <span>
+              {!configReady
+                ? ""
+                : isCompleteModelConfig(config)
+                  ? "模型配置已持久化"
+                  : "请先在设置页填写 Provider 配置"}
+            </span>
           </div>
-        ) : (
-          <>
-            <label>
-              <span>Base URL</span>
-              <input
-                value={config.baseURL}
-                onChange={(event) => setConfig((current) => ({ ...current, baseURL: event.target.value }))}
-                disabled={running || !configReady}
-              />
-            </label>
-            <label>
-              <span>Model ID</span>
-              <input
-                value={config.model}
-                onChange={(event) => setConfig((current) => ({ ...current, model: event.target.value }))}
-                disabled={running || !configReady}
-              />
-            </label>
-            <label>
-              <span>API Key</span>
-              <input
-                type="password"
-                value={config.apiKey}
-                onChange={(event) => setConfig((current) => ({ ...current, apiKey: event.target.value }))}
-                disabled={running || !configReady}
-              />
-            </label>
-            <div className="config-save-hint">
-              {configSaveState === "saving" ? "正在自动保存…" : "填写完成后自动保存并隐藏"}
-            </div>
-          </>
-        )}
+          <button
+            type="button"
+            className="open-settings-button"
+            onClick={openSettings}
+          >
+            打开设置
+          </button>
+        </div>
       </section>
 
       <section
@@ -472,7 +417,20 @@ export function App() {
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
           onKeyDown={(event) => {
-            if (event.key !== "Enter" || event.metaKey || event.nativeEvent.isComposing) return;
+            if (event.key !== "Enter" || event.nativeEvent.isComposing) return;
+            if (event.metaKey) {
+              event.preventDefault();
+              const textarea = event.currentTarget;
+              const start = textarea.selectionStart;
+              const end = textarea.selectionEnd;
+              const nextValue = `${textarea.value.slice(0, start)}\n${textarea.value.slice(end)}`;
+              setDraft(nextValue);
+              requestAnimationFrame(() => {
+                textarea.selectionStart = start + 1;
+                textarea.selectionEnd = start + 1;
+              });
+              return;
+            }
             event.preventDefault();
             void send();
           }}
@@ -480,14 +438,11 @@ export function App() {
           rows={3}
           disabled={running}
         />
-        <div className="composer-actions">
-          <span className="hint">Enter 发送 · ⌘Enter 换行 · 无步数、长度或工具次数上限</span>
-          {running ? (
+        {running && (
+          <div className="composer-actions">
             <button type="button" className="stop-button" onClick={stop}>停止</button>
-          ) : (
-            <button type="submit" className="send-button" disabled={!draft.trim()}>发送</button>
-          )}
-        </div>
+          </div>
+        )}
       </form>
     </main>
   );

@@ -51,13 +51,6 @@ button {
   gap: 12px;
 }
 
-.eyebrow {
-  color: #8e99b4;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.16em;
-}
-
 h1,
 h2,
 p {
@@ -68,23 +61,6 @@ h1 {
   margin-top: 4px;
   font-size: 20px;
   letter-spacing: -0.03em;
-}
-
-.status-pill {
-  max-width: 48%;
-  overflow: hidden;
-  border: 1px solid #273044;
-  border-radius: 999px;
-  color: #8e99b4;
-  font-size: 11px;
-  padding: 6px 9px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.status-pill.active {
-  border-color: #5667ff;
-  color: #b7c0ff;
 }
 
 .config-card {
@@ -113,21 +89,13 @@ h1 {
   font-size: 12px;
 }
 
-.config-saved span,
-.config-save-hint {
+.config-saved span {
   color: #74809d;
   font-size: 10px;
   line-height: 1.4;
 }
 
-.config-actions {
-  display: flex;
-  flex: 0 0 auto;
-  gap: 6px;
-}
-
-.edit-config-button,
-.clear-config-button {
+.open-settings-button {
   flex: 0 0 auto;
   border: 1px solid #36426d;
   border-radius: 7px;
@@ -135,12 +103,6 @@ h1 {
   color: #c6ceff;
   font-size: 11px;
   padding: 6px 9px;
-}
-
-.clear-config-button {
-  border-color: #593448;
-  background: #2a1b2b;
-  color: #f0a4bc;
 }
 
 label {
@@ -462,31 +424,15 @@ pre {
 .composer-actions {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 8px;
 }
-
-.hint {
-  color: #687593;
-  font-size: 10px;
-}
-
-.send-button,
 .stop-button {
   border: 0;
   border-radius: 8px;
   color: white;
   font-weight: 700;
   padding: 8px 14px;
-}
-
-.send-button {
-  background: #5e6cff;
-}
-
-.send-button:disabled {
-  cursor: not-allowed;
-  opacity: 0.4;
 }
 
 .stop-button {

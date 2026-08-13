@@ -23,6 +23,7 @@ test("loads the MV3 side panel and can use Chrome debugger from an extension pag
     const extensionPage = await context.newPage();
     await extensionPage.goto(`chrome-extension://${extensionId}/sidepanel.html`);
     await expect(extensionPage.locator("h1")).toHaveText("Side Agent Runtime");
+    await expect(extensionPage.locator(".eyebrow, .status-pill, .hint, .send-button, .clear-config-button")).toHaveCount(0);
 
     const layout = await extensionPage.evaluate(() => {
       const shell = document.querySelector<HTMLElement>(".app-shell");
@@ -52,31 +53,44 @@ test("loads the MV3 side panel and can use Chrome debugger from an extension pag
     const manifest = await extensionPage.evaluate(() => chrome.runtime.getManifest());
     expect(manifest.manifest_version).toBe(3);
     expect(manifest.minimum_chrome_version).toBe("125");
+    expect(manifest.options_page).toBe("options.html");
     expect(manifest.permissions).toContain("debugger");
     await expect.poll(() => extensionPage.evaluate(() => chrome.sidePanel.getPanelBehavior()))
       .toMatchObject({ openPanelOnActionClick: true });
 
-    const configInputs = extensionPage.locator(".config-card input");
+    await expect(extensionPage.locator(".config-card input")).toHaveCount(0);
+    await expect(extensionPage.locator(".config-card")).toContainText("尚未配置模型");
+
+    const [optionsPage] = await Promise.all([
+      context.waitForEvent("page"),
+      extensionPage.locator(".open-settings-button").click(),
+    ]);
+    await optionsPage.waitForLoadState("domcontentloaded");
+    await expect(optionsPage.locator("h1")).toHaveText("模型设置");
+    const configInputs = optionsPage.locator(".options-card input");
+    await expect(configInputs).toHaveCount(3);
     await configInputs.nth(0).fill("https://provider.test/v1");
     await configInputs.nth(1).fill("test-model");
     await configInputs.nth(2).fill("test-key");
-    await expect(extensionPage.locator(".config-saved")).toBeVisible();
-    await expect(extensionPage.locator(".config-card input")).toHaveCount(0);
+    await expect(extensionPage.locator(".config-card")).toContainText("尚未配置模型");
+    await optionsPage.getByRole("button", { name: "保存配置" }).click();
+    await expect(optionsPage.locator(".save-message.saved")).toBeVisible();
+    await expect(extensionPage.locator(".config-card")).toContainText("配置已保存");
+    await optionsPage.close();
 
     const composer = extensionPage.locator("textarea");
+    await composer.fill("first line");
+    await composer.press("Meta+Enter");
+    await expect(composer).toHaveValue("first line\n");
     await composer.fill("this state must not persist");
     expect(await composer.getAttribute("maxlength")).toBeNull();
     await extensionPage.close();
     const reopened = await context.newPage();
     await reopened.goto(`chrome-extension://${extensionId}/sidepanel.html`);
     await expect(reopened.locator("textarea")).toHaveValue("");
-    await expect(reopened.locator(".config-saved")).toBeVisible();
-    await reopened.locator(".clear-config-button").click();
-    await expect(reopened.locator(".config-saved")).toHaveCount(0);
-    await expect(reopened.locator(".config-card input")).toHaveCount(3);
-    await expect(reopened.locator(".config-card input").nth(0)).toHaveValue("");
-    await expect(reopened.locator(".config-card input").nth(1)).toHaveValue("");
-    await expect(reopened.locator(".config-card input").nth(2)).toHaveValue("");
+    await expect(reopened.locator(".config-card")).toContainText("配置已保存");
+    await expect(reopened.locator(".config-card input")).toHaveCount(0);
+    await expect(reopened.locator(".clear-config-button")).toHaveCount(0);
 
     const target = await context.newPage();
     await target.goto("data:text/html,<title>Side Agent E2E</title><main>ready</main>");
