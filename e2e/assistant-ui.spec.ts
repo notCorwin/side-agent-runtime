@@ -85,6 +85,35 @@ async function configureProvider(context: BrowserContext, page: Page): Promise<v
   await expect(page.getByTestId("composer-input")).toBeVisible();
 }
 
+test("shows three welcome suggestions and sends the selected one", async () => {
+  const { context, page, userDataDirectory } = await openExtension();
+
+  try {
+    await context.route("https://provider.test/v1/chat/completions", async (route) => {
+      await route.fulfill({
+        status: 200,
+        headers: {
+          "cache-control": "no-cache",
+          "content-type": "text/event-stream",
+        },
+        body: textResponse("已收到你的任务。"),
+      });
+    });
+
+    await configureProvider(context, page);
+    const welcomeOptions = page.getByTestId("welcome-options");
+    await expect(welcomeOptions.getByRole("button")).toHaveCount(3);
+    await expect(welcomeOptions).toContainText("移除页面广告");
+    await expect(welcomeOptions).toContainText("添加深色模式");
+    await expect(welcomeOptions).toContainText("做最酷的事情");
+    await welcomeOptions.getByRole("button", { name: "添加深色模式" }).click();
+    await expect(page.locator('[data-role="user"]').last()).toContainText("添加深色模式");
+  } finally {
+    await context.close();
+    await rm(userDataDirectory, { recursive: true, force: true });
+  }
+});
+
 test("renders copyable assistant code and supports editing user messages", async () => {
   const { context, page, userDataDirectory } = await openExtension();
 

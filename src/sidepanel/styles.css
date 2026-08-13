@@ -95,6 +95,39 @@ p {
   flex: 1 0 auto;
 }
 
+.aui-thread-welcome-root {
+  display: flex;
+  width: min(100%, 30rem);
+  align-items: center;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0 12px;
+}
+
+.welcome-option {
+  display: flex;
+  min-height: 44px;
+  width: min(100%, 26rem);
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--card);
+  color: var(--foreground);
+  padding: 10px 14px;
+  text-align: center;
+  font-size: 13px;
+  line-height: 1.35;
+  transition: background-color 120ms ease, border-color 120ms ease;
+}
+
+.welcome-option:hover,
+.welcome-option:focus-visible {
+  border-color: var(--ring);
+  background: var(--accent);
+  outline: none;
+}
+
 .aui-thread-viewport-footer {
   z-index: 1;
 }

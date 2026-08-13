@@ -6,6 +6,7 @@ import {
   ComposerPrimitive,
   ErrorPrimitive,
   MessagePrimitive,
+  SuggestionPrimitive,
   ThreadPrimitive,
   useAui,
   useAuiState,
@@ -91,12 +92,14 @@ function useContextualThreadEmpty(): boolean {
 }
 
 const ThreadWelcome: FC = () => (
-  <div className="aui-thread-welcome-root flex flex-col items-center px-3 text-center">
-    <div className="mb-3 grid size-10 place-items-center rounded-xl border border-border bg-muted text-primary">⌘</div>
-    <h2 className="text-base font-semibold tracking-tight">可以开始了</h2>
-    <p className="mt-1 max-w-[270px] text-xs leading-relaxed text-muted-foreground">
-      告诉 Agent 要完成什么，它可以通过通用工具调用 Chrome API 或 CDP。
-    </p>
+  <div className="aui-thread-welcome-root" data-testid="welcome-options">
+    <ThreadPrimitive.Suggestions>
+      {() => (
+        <SuggestionPrimitive.Trigger send className="welcome-option">
+          <SuggestionPrimitive.Title />
+        </SuggestionPrimitive.Trigger>
+      )}
+    </ThreadPrimitive.Suggestions>
   </div>
 );
 

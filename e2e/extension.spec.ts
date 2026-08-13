@@ -184,6 +184,13 @@ test("loads the MV3 side panel and can use Chrome debugger from an extension pag
     await expect(optionsPage.locator(".save-message.saved")).toBeVisible();
     await expect(extensionPage.getByTestId("model-label")).toHaveText("Deepseek V4 Flash 0731");
     await expect(extensionPage.getByTestId("composer-input")).toBeVisible();
+    const welcomeOptions = extensionPage.getByTestId("welcome-options");
+    await expect(welcomeOptions).toBeVisible();
+    await expect(welcomeOptions.getByRole("button")).toHaveCount(3);
+    await expect(welcomeOptions).toContainText("移除页面广告");
+    await expect(welcomeOptions).toContainText("添加深色模式");
+    await expect(welcomeOptions).toContainText("做最酷的事情");
+    await expect(extensionPage.getByText("可以开始了")).toHaveCount(0);
     const welcomeLayout = await extensionPage.evaluate(() => {
       const welcome = document.querySelector<HTMLElement>(".aui-thread-welcome-root");
       const viewport = document.querySelector<HTMLElement>("[data-testid=thread-viewport]");

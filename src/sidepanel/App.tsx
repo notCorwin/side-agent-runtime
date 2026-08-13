@@ -23,6 +23,12 @@ const initialConfig: ModelConfig = {
   model: "",
 };
 
+const welcomeSuggestions = [
+  { prompt: "移除页面广告" },
+  { prompt: "添加深色模式" },
+  { prompt: "做最酷的事情" },
+] as const;
+
 function errorText(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
@@ -129,7 +135,10 @@ function ConfiguredChat({ config }: { config: ModelConfig }) {
   const bridge = useMemo(() => new ChromeBridge(), []);
   const agent = useMemo(() => createAgent({ model: config, bridge }), [config, bridge]);
   const transport = useMemo(() => createChromeChatTransport(agent), [agent]);
-  const runtime = useChatRuntime({ transport });
+  const runtime = useChatRuntime({
+    transport,
+    suggestions: welcomeSuggestions,
+  });
 
   useEffect(() => {
     const stopAndDispose = () => {
