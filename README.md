@@ -17,6 +17,12 @@ npm run build
 
 在 `chrome://extensions` 打开“开发者模式”，选择“加载已解压的扩展程序”，然后选择 `dist/`。点击扩展 Action 图标即可打开 Side Panel。
 
+### GitHub Autobuild Release
+
+每次分支提交都会触发 GitHub Actions 构建，并替换 GitHub Release 中固定的 `Autobuild` 版本。Release 提供 `side-agent-runtime-autobuild.zip`，解压后选择包含 `manifest.json` 的目录即可在 `chrome://extensions` 中加载。
+
+Chrome 不允许未经过 Chrome Web Store 或企业策略签名的扩展绕过开发者模式直接安装，因此 Autobuild 使用标准的可加载扩展 ZIP，并同时提供 SHA-256 校验文件。
+
 ## 模型配置
 
 点击 Side Panel 的“打开设置”，或在扩展详情页打开“扩展程序选项”，进入独立设置页填写：

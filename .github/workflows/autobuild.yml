@@ -1,0 +1,94 @@
+name: Autobuild Release
+
+on:
+  push:
+    branches:
+      - "**"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: autobuild-release
+  cancel-in-progress: false
+
+jobs:
+  autobuild:
+    name: Build and publish Autobuild
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out commit
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check and test
+        run: |
+          npm run check
+          npm test
+
+      - name: Package extension
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          test -f dist/manifest.json
+          test -f dist/sidepanel.html
+          test -f dist/options.html
+
+          archive="$RUNNER_TEMP/side-agent-runtime-autobuild.zip"
+          (cd dist && zip -qr "$archive" . -x '*.DS_Store')
+          sha256sum "$archive" > "$archive.sha256"
+
+          echo "ARCHIVE=$archive" >> "$GITHUB_ENV"
+          echo "CHECKSUM=$archive.sha256" >> "$GITHUB_ENV"
+
+      - name: Write release notes
+        shell: bash
+        run: |
+          cat > "$RUNNER_TEMP/autobuild-release-notes.md" <<EOF
+          Automated Chrome extension build for commit \`$GITHUB_SHA\`.
+
+          Install:
+
+          1. Download \`side-agent-runtime-autobuild.zip\` and extract it.
+          2. Open \`chrome://extensions\` and enable Developer mode.
+          3. Choose **Load unpacked** and select the extracted directory containing \`manifest.json\`.
+
+          The SHA-256 checksum is available in \`side-agent-runtime-autobuild.zip.sha256\`.
+          EOF
+
+      - name: Replace Autobuild release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          repository="$GITHUB_REPOSITORY"
+          tag="autobuild"
+
+          if gh release view "$tag" --repo "$repository" >/dev/null 2>&1; then
+            gh release delete "$tag" --repo "$repository" --yes --cleanup-tag
+          else
+            gh api --method DELETE "repos/$repository/git/refs/tags/$tag" >/dev/null 2>&1 || true
+          fi
+
+          gh release create "$tag" \
+            --repo "$repository" \
+            --target "$GITHUB_SHA" \
+            --title "Autobuild" \
+            --notes-file "$RUNNER_TEMP/autobuild-release-notes.md" \
+            "$ARCHIVE" \
+            "$CHECKSUM"
