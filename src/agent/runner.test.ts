@@ -48,6 +48,7 @@ describe("runAgent", () => {
       },
     });
     const events: string[] = [];
+    const metadata: Array<{ operation: string; path?: string }> = [];
     const bridge = new ChromeBridge({ chromeApi: fakeChrome() });
 
     const result = await runAgent({
@@ -56,12 +57,17 @@ describe("runAgent", () => {
       languageModel: model,
       bridge,
       onEvent: (event) => {
-        if (event.type === "tool-result") events.push(event.type);
+        if (event.type === "tool-result") {
+          events.push(event.type);
+          metadata.push(event.activity.meta);
+        }
       },
     });
 
     expect(callCount).toBe(101);
     expect(events).toHaveLength(100);
+    expect(metadata).toHaveLength(100);
+    expect(metadata.every((item) => item.operation === "call" && item.path === "tabs.query")).toBe(true);
     expect(result.finishReason).toBe("stop");
     expect(result.messages.length).toBeGreaterThan(1);
   });

@@ -20,6 +20,11 @@ export type ChromeToolInput = {
   sessionId?: string;
 };
 
+export type ChromeToolMeta = Pick<
+  ChromeToolInput,
+  "operation" | "path" | "eventPath" | "action" | "command"
+>;
+
 export type ChromeToolOutput =
   | { ok: true; value: JsonValue }
   | { ok: false; error: { name: string; message: string; details?: JsonValue } };
@@ -34,6 +39,7 @@ export type ModelConfig = {
 export type ToolActivity = {
   id: string;
   toolName: string;
+  meta: ChromeToolMeta;
   input: unknown;
   output?: unknown;
   error?: unknown;

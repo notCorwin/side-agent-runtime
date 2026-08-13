@@ -53,7 +53,9 @@ test.describe("OpenRouter live agent", () => {
       const assistantMessage = page.locator(".assistant-message .markdown-body").last();
       await expect(assistantMessage).not.toHaveText("", { timeout: 180_000 });
       await expect(page.locator(".activity.complete")).toHaveCount(1, { timeout: 180_000 });
-      await expect(page.locator(".activity.complete summary")).toContainText("tabs.query");
+      const toolSummary = page.locator(".activity.complete summary");
+      await expect(toolSummary).toContainText("tabs.query");
+      await expect(toolSummary).not.toContainText("chrome");
       expect(await page.locator(".thinking-item").count()).toBeGreaterThan(0);
       expect(await page.locator(".thinking-item").evaluateAll((items) => (
         items.every((item) => !item.hasAttribute("open"))

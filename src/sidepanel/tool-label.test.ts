@@ -4,6 +4,7 @@ import { formatToolLabel } from "./tool-label";
 describe("formatToolLabel", () => {
   it("keeps call labels concise by showing path", () => {
     expect(formatToolLabel({ operation: "call", path: "tabs.query" })).toBe("tabs.query");
+    expect(formatToolLabel({ operation: "call" })).toBe("call");
   });
 
   it("adds the namespace path to describe labels", () => {
@@ -17,16 +18,12 @@ describe("formatToolLabel", () => {
     expect(formatToolLabel({ operation: "waitEvent" })).toBe("waitEvent");
   });
 
-  it("uses the CDP command before the action fallback", () => {
+  it("shows the CDP action and command context", () => {
     expect(formatToolLabel({ operation: "cdp", command: "Runtime.evaluate", action: "send" }))
-      .toBe("cdp · Runtime.evaluate");
+      .toBe("cdp · send · Runtime.evaluate");
+    expect(formatToolLabel({ operation: "cdp", command: "Runtime.evaluate" }))
+      .toBe("cdp · send · Runtime.evaluate");
     expect(formatToolLabel({ operation: "cdp", action: "attach" })).toBe("cdp · attach");
     expect(formatToolLabel({ operation: "cdp" })).toBe("cdp");
-  });
-
-  it("falls back to the operation and then chrome", () => {
-    expect(formatToolLabel({ operation: "call" })).toBe("call");
-    expect(formatToolLabel({})).toBe("chrome");
-    expect(formatToolLabel(null)).toBe("chrome");
   });
 });

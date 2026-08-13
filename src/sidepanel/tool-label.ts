@@ -1,35 +1,21 @@
-function asRecord(value: unknown): Record<string, unknown> | null {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
-  return value as Record<string, unknown>;
-}
+import type { ChromeToolMeta } from "../types";
 
-function nonEmptyString(value: unknown): string | undefined {
-  if (typeof value !== "string") return undefined;
-  const text = value.trim();
-  return text || undefined;
-}
-
-export function formatToolLabel(input: unknown): string {
-  const record = asRecord(input);
-  const operation = nonEmptyString(record?.operation);
-  if (!operation) return "chrome";
-
-  switch (operation) {
+export function formatToolLabel(meta: ChromeToolMeta): string {
+  switch (meta.operation) {
     case "call":
-      return nonEmptyString(record?.path) ?? operation;
+      return meta.path?.trim() || "call";
     case "describe": {
-      const path = nonEmptyString(record?.path);
-      return path ? `${operation} · ${path}` : operation;
+      const path = meta.path?.trim();
+      return path ? `describe · ${path}` : "describe";
     }
     case "waitEvent": {
-      const eventPath = nonEmptyString(record?.eventPath);
-      return eventPath ? `${operation} · ${eventPath}` : operation;
+      const eventPath = meta.eventPath?.trim();
+      return eventPath ? `waitEvent · ${eventPath}` : "waitEvent";
     }
     case "cdp": {
-      const target = nonEmptyString(record?.command) ?? nonEmptyString(record?.action);
-      return target ? `${operation} · ${target}` : operation;
+      const command = meta.command?.trim();
+      if (command) return `cdp · ${meta.action ?? "send"} · ${command}`;
+      return meta.action ? `cdp · ${meta.action}` : "cdp";
     }
-    default:
-      return operation;
   }
 }

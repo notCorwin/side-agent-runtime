@@ -1,6 +1,6 @@
 import { isLoopFinished, ToolLoopAgent } from "ai";
 import type { LanguageModel, ModelMessage } from "ai";
-import { createChromeTool } from "../chrome/tool";
+import { createChromeTool, extractChromeToolMeta } from "../chrome/tool";
 import type { AgentEvent, AgentRunResult, ModelConfig, ToolActivity } from "../types";
 import { ChromeBridge } from "../chrome/bridge";
 import { createModel } from "./model";
@@ -68,6 +68,7 @@ export async function runAgent(options: RunAgentOptions): Promise<AgentRunResult
           const activity: ToolActivity = {
             id: part.toolCallId,
             toolName: part.toolName,
+            meta: extractChromeToolMeta(part.input),
             input: part.input,
             status: "running",
           };
@@ -78,6 +79,7 @@ export async function runAgent(options: RunAgentOptions): Promise<AgentRunResult
           const activity: ToolActivity = {
             id: part.toolCallId,
             toolName: part.toolName,
+            meta: extractChromeToolMeta(part.input),
             input: part.input,
             output: part.output,
             status: "complete",
@@ -89,6 +91,7 @@ export async function runAgent(options: RunAgentOptions): Promise<AgentRunResult
           const activity: ToolActivity = {
             id: part.toolCallId,
             toolName: part.toolName,
+            meta: extractChromeToolMeta(part.input),
             input: part.input,
             error: part.error,
             status: "error",

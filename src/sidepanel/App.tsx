@@ -57,7 +57,7 @@ function ToolDetails({ activity }: { activity: ToolActivity }) {
     <details className={`activity ${activity.status}`} open={activity.status === "running" ? true : undefined}>
       <summary>
         <span className="activity-dot" />
-        <span>{formatToolLabel(activity.input)}</span>
+        <span>{formatToolLabel(activity.meta)}</span>
         <span className="activity-status">{activity.status}</span>
       </summary>
       <div className="activity-content">
