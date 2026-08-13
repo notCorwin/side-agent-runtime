@@ -34,6 +34,10 @@ p {
   gap: 12px;
 }
 
+.app-title {
+  min-width: 0;
+}
+
 .app-model {
   margin-top: 3px;
   color: var(--muted-foreground);
@@ -49,43 +53,10 @@ p {
   letter-spacing: -0.03em;
 }
 
-.config-card {
-  display: grid;
-  flex: 0 0 auto;
-  gap: 8px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  background: var(--card);
-  padding: 11px;
-}
-
-.config-saved {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.config-saved > div {
-  display: grid;
-  gap: 3px;
-  min-width: 0;
-}
-
-.config-saved strong {
-  color: var(--foreground);
-  font-size: 12px;
-}
-
-.config-saved span,
-.config-status {
-  color: var(--muted-foreground);
-  font-size: 10px;
-  line-height: 1.4;
-}
-
 .config-status {
   color: var(--destructive);
+  font-size: 10px;
+  line-height: 1.4;
 }
 
 .open-settings-button {

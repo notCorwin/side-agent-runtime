@@ -42,7 +42,6 @@ test.describe("OpenRouter live agent", () => {
       await inputs.nth(2).fill(apiKey!);
       await optionsPage.getByRole("button", { name: "保存配置" }).click();
       await expect(optionsPage.locator(".save-message.saved")).toBeVisible({ timeout: 5_000 });
-      await expect(page.locator(".config-card")).toContainText("配置已保存");
       await expect(page.getByTestId("model-label")).toHaveText("Nemotron 3.5 Lightning");
       await optionsPage.close();
 

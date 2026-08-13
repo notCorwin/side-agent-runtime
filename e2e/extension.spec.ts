@@ -43,6 +43,7 @@ test("loads the MV3 side panel and can use Chrome debugger from an extension pag
       text: button.textContent?.trim() ?? "",
       hasIcon: Boolean(button.querySelector("svg")),
     }))).toEqual({ text: "", hasIcon: true });
+    await expect.poll(() => extensionPage.getByTestId("open-settings").evaluate((button) => Boolean(button.closest(".app-header")))).toBe(true);
 
     const layout = await extensionPage.evaluate(() => {
       const shell = document.querySelector<HTMLElement>("[data-testid=sidepanel-shell]");
@@ -77,8 +78,8 @@ test("loads the MV3 side panel and can use Chrome debugger from an extension pag
     await expect.poll(() => extensionPage.evaluate(() => chrome.sidePanel.getPanelBehavior()))
       .toMatchObject({ openPanelOnActionClick: true });
 
-    await expect(extensionPage.getByTestId("config-card").locator("input")).toHaveCount(0);
-    await expect(extensionPage.getByTestId("config-card")).toContainText("尚未配置模型");
+    await expect(extensionPage.locator(".config-card")).toHaveCount(0);
+    await expect(extensionPage.getByTestId("config-required-state")).toContainText("先完成模型配置");
 
     const [optionsPage] = await Promise.all([
       context.waitForEvent("page"),
@@ -91,11 +92,24 @@ test("loads the MV3 side panel and can use Chrome debugger from an extension pag
     await configInputs.nth(0).fill("https://provider.test/v1");
     await configInputs.nth(1).fill("deepseek/deepseek-v4-flash-0731:free");
     await configInputs.nth(2).fill("test-key");
-    await expect(extensionPage.getByTestId("config-card")).toContainText("尚未配置模型");
     await optionsPage.getByRole("button", { name: "保存配置" }).click();
     await expect(optionsPage.locator(".save-message.saved")).toBeVisible();
-    await expect(extensionPage.getByTestId("config-card")).toContainText("配置已保存");
     await expect(extensionPage.getByTestId("model-label")).toHaveText("Deepseek V4 Flash 0731");
+    await expect(extensionPage.getByTestId("composer-input")).toBeVisible();
+    const welcomeLayout = await extensionPage.evaluate(() => {
+      const welcome = document.querySelector<HTMLElement>(".aui-thread-welcome-root");
+      const viewport = document.querySelector<HTMLElement>("[data-testid=thread-viewport]");
+      const footer = document.querySelector<HTMLElement>(".aui-thread-viewport-footer");
+      if (!welcome || !viewport || !footer) throw new Error("Welcome layout was not rendered");
+      const welcomeRect = welcome.getBoundingClientRect();
+      const viewportRect = viewport.getBoundingClientRect();
+      const footerRect = footer.getBoundingClientRect();
+      return {
+        welcomeCenter: welcomeRect.top + welcomeRect.height / 2,
+        contentCenter: (viewportRect.top + footerRect.top) / 2,
+      };
+    });
+    expect(Math.abs(welcomeLayout.welcomeCenter - welcomeLayout.contentCenter)).toBeLessThan(2);
     await optionsPage.close();
 
     const composer = extensionPage.getByTestId("composer-input");
@@ -119,9 +133,8 @@ test("loads the MV3 side panel and can use Chrome debugger from an extension pag
     const reopened = await context.newPage();
     await reopened.goto(`chrome-extension://${extensionId}/sidepanel.html`);
     await expect(reopened.getByTestId("composer-input")).toHaveValue("");
-    await expect(reopened.getByTestId("config-card")).toContainText("配置已保存");
     await expect(reopened.getByTestId("model-label")).toHaveText("Deepseek V4 Flash 0731");
-    await expect(reopened.getByTestId("config-card").locator("input")).toHaveCount(0);
+    await expect(reopened.locator(".config-card")).toHaveCount(0);
     await expect(reopened.locator(".clear-config-button")).toHaveCount(0);
 
     const target = await context.newPage();
@@ -170,7 +183,7 @@ test("follows the system color scheme with a grayscale palette", async () => {
     const optionsPage = await context.newPage();
     await sidepanel.goto(`chrome-extension://${extensionId}/sidepanel.html`);
     await optionsPage.goto(`chrome-extension://${extensionId}/options.html`);
-    await expect(sidepanel.getByTestId("config-card")).toBeVisible();
+    await expect(sidepanel.getByTestId("config-required-state")).toBeVisible();
     await expect(optionsPage.getByTestId("options-card")).toBeVisible();
 
     for (const colorScheme of ["light", "dark"] as const satisfies readonly ColorScheme[]) {
@@ -183,7 +196,7 @@ test("follows the system color scheme with a grayscale palette", async () => {
       const sidepanelTheme = await sidepanel.evaluate(() => {
         const elements = [
           document.body,
-          document.querySelector<HTMLElement>(".config-card"),
+          document.querySelector<HTMLElement>(".app-header"),
           document.querySelector<HTMLElement>(".open-settings-button"),
           document.querySelector<HTMLElement>(".empty-icon"),
         ].filter((element): element is HTMLElement => Boolean(element));

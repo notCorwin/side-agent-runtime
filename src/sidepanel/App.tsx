@@ -73,7 +73,7 @@ export function App() {
   const modelLabel = formatModelDisplayName(config.model);
 
   return (
-    <SidePanelLayout config={config} ready={configReady} status={status} modelLabel={modelLabel}>
+    <SidePanelLayout modelLabel={modelLabel}>
       {configured ? (
         <ConfiguredChat key={key} config={config} />
       ) : (
@@ -85,18 +85,7 @@ export function App() {
               ? "打开设置页填写 Provider、Model ID 和 API Key，保存后即可开始对话。"
               : "正在检查本地保存的模型配置。"}
           </p>
-          {configReady && (
-            <button
-              type="button"
-              className="open-settings-button"
-              data-testid="open-settings-empty"
-              aria-label="打开设置"
-              title="打开设置"
-              onClick={openSettings}
-            >
-              <SettingsIcon className="size-4" aria-hidden="true" />
-            </button>
-          )}
+          {status && <p className="config-status" role="status">{status}</p>}
         </div>
       )}
     </SidePanelLayout>
@@ -104,55 +93,30 @@ export function App() {
 }
 
 function SidePanelLayout({
-  config,
-  ready,
-  status,
   modelLabel,
   children,
 }: {
-  config: ModelConfig;
-  ready: boolean;
-  status: string;
   modelLabel: string;
   children: ReactNode;
 }) {
-  const configured = ready && isCompleteModelConfig(config);
   return (
     <main className="app-shell" data-testid="sidepanel-shell">
       <header className="app-header">
-        <div>
+        <div className="app-title">
           <h1>Side Agent Runtime</h1>
           {modelLabel && <p className="app-model" data-testid="model-label">{modelLabel}</p>}
         </div>
+        <button
+          type="button"
+          className="open-settings-button"
+          data-testid="open-settings"
+          aria-label="打开设置"
+          title="打开设置"
+          onClick={openSettings}
+        >
+          <SettingsIcon className="size-4" aria-hidden="true" />
+        </button>
       </header>
-
-      <section className="config-card" aria-label="模型配置" data-testid="config-card">
-        <div className="config-saved">
-          <div>
-            <strong>
-              {!ready ? "正在读取配置…" : configured ? "配置已保存" : "尚未配置模型"}
-            </strong>
-            <span>
-              {!ready
-                ? ""
-                : configured
-                  ? "模型配置已持久化"
-                  : "请先在设置页填写 Provider 配置"}
-            </span>
-          </div>
-          <button
-            type="button"
-            className="open-settings-button"
-            data-testid="open-settings"
-            aria-label="打开设置"
-            title="打开设置"
-            onClick={openSettings}
-          >
-            <SettingsIcon className="size-4" aria-hidden="true" />
-          </button>
-        </div>
-        {status && <p className="config-status" role="status">{status}</p>}
-      </section>
 
       <section className="chat-scroll" data-testid="chat-scroll" aria-live="polite">
         {children}

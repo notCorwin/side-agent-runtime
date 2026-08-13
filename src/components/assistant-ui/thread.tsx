@@ -55,19 +55,21 @@ const ThreadRoot: FC = () => {
         data-testid="thread-viewport"
         className="relative flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto scroll-smooth"
       >
-        <div className={cn("mx-auto flex min-h-full w-full max-w-(--thread-max-width) flex-1 flex-col px-1 pt-3", isEmpty && "justify-center")}>
-          <AuiIf condition={() => isEmpty}>
-            <Welcome />
-          </AuiIf>
-          <div data-slot="aui_message-group" className="mb-10 flex flex-col gap-y-4 empty:hidden">
-            <ThreadPrimitive.Messages>
-              {({ message }) => {
-                if (message.role === "user") {
-                  return message.composer.isEditing ? <UserEditComposer /> : <UserMessage />;
-                }
-                return <AssistantMessage />;
-              }}
-            </ThreadPrimitive.Messages>
+        <div className={cn("mx-auto flex min-h-full w-full max-w-(--thread-max-width) flex-1 flex-col px-1", !isEmpty && "pt-3")}>
+          <div className={cn("flex min-h-0 flex-1 flex-col", isEmpty && "justify-center")}>
+            <AuiIf condition={() => isEmpty}>
+              <Welcome />
+            </AuiIf>
+            <div data-slot="aui_message-group" className="mb-10 flex flex-col gap-y-4 empty:hidden">
+              <ThreadPrimitive.Messages>
+                {({ message }) => {
+                  if (message.role === "user") {
+                    return message.composer.isEditing ? <UserEditComposer /> : <UserMessage />;
+                  }
+                  return <AssistantMessage />;
+                }}
+              </ThreadPrimitive.Messages>
+            </div>
           </div>
           <ThreadPrimitive.ViewportFooter className={cn("aui-thread-viewport-footer mt-auto flex flex-col gap-3 bg-background pb-2", !isEmpty && "sticky bottom-0 rounded-t-xl pt-2")}>
             <ThreadPrimitive.ScrollToBottom asChild>
@@ -93,7 +95,7 @@ function useContextualThreadEmpty(): boolean {
 }
 
 const ThreadWelcome: FC = () => (
-  <div className="aui-thread-welcome-root mb-5 flex flex-col items-center px-3 text-center">
+  <div className="aui-thread-welcome-root flex flex-col items-center px-3 text-center">
     <div className="mb-3 grid size-10 place-items-center rounded-xl border border-border bg-muted text-primary">⌘</div>
     <h2 className="text-base font-semibold tracking-tight">可以开始了</h2>
     <p className="mt-1 max-w-[270px] text-xs leading-relaxed text-muted-foreground">
