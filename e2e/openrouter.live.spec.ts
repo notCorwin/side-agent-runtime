@@ -50,14 +50,14 @@ test.describe("OpenRouter live agent", () => {
       );
       await page.locator("textarea").press("Enter");
 
-      const assistantMessage = page.locator(".assistant-message .markdown-body").last();
+      const assistantMessage = page.locator('[data-role="assistant"] .markdown-body').last();
       await expect(assistantMessage).not.toHaveText("", { timeout: 180_000 });
-      await expect(page.locator(".activity.complete")).toHaveCount(1, { timeout: 180_000 });
-      const toolSummary = page.locator(".activity.complete summary");
+      await expect(page.getByTestId("chrome-tool-call")).toHaveCount(1, { timeout: 180_000 });
+      const toolSummary = page.getByTestId("chrome-tool-call").locator("summary");
       await expect(toolSummary).toContainText("tabs.query");
       await expect(toolSummary).not.toContainText("chrome");
-      expect(await page.locator(".thinking-item").count()).toBeGreaterThan(0);
-      expect(await page.locator(".thinking-item").evaluateAll((items) => (
+      expect(await page.getByTestId("reasoning-item").count()).toBeGreaterThan(0);
+      expect(await page.getByTestId("reasoning-item").evaluateAll((items) => (
         items.every((item) => !item.hasAttribute("open"))
       ))).toBe(true);
       await expect(assistantMessage).toHaveText(/\d/, { timeout: 180_000 });

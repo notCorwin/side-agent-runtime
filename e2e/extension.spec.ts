@@ -23,11 +23,11 @@ test("loads the MV3 side panel and can use Chrome debugger from an extension pag
     const extensionPage = await context.newPage();
     await extensionPage.goto(`chrome-extension://${extensionId}/sidepanel.html`);
     await expect(extensionPage.locator("h1")).toHaveText("Side Agent Runtime");
-    await expect(extensionPage.locator(".eyebrow, .status-pill, .hint, .send-button, .clear-config-button")).toHaveCount(0);
+    await expect(extensionPage.locator("[data-testid=app-eyebrow], .status-pill, .hint, .send-button, .clear-config-button")).toHaveCount(0);
 
     const layout = await extensionPage.evaluate(() => {
-      const shell = document.querySelector<HTMLElement>(".app-shell");
-      const chat = document.querySelector<HTMLElement>(".chat-scroll");
+      const shell = document.querySelector<HTMLElement>("[data-testid=sidepanel-shell]");
+      const chat = document.querySelector<HTMLElement>("[data-testid=chat-scroll]");
       if (!shell || !chat) throw new Error("Side panel layout was not rendered");
       return {
         bodyHeight: document.body.clientHeight,
@@ -58,38 +58,41 @@ test("loads the MV3 side panel and can use Chrome debugger from an extension pag
     await expect.poll(() => extensionPage.evaluate(() => chrome.sidePanel.getPanelBehavior()))
       .toMatchObject({ openPanelOnActionClick: true });
 
-    await expect(extensionPage.locator(".config-card input")).toHaveCount(0);
-    await expect(extensionPage.locator(".config-card")).toContainText("尚未配置模型");
+    await expect(extensionPage.getByTestId("config-card").locator("input")).toHaveCount(0);
+    await expect(extensionPage.getByTestId("config-card")).toContainText("尚未配置模型");
 
     const [optionsPage] = await Promise.all([
       context.waitForEvent("page"),
-      extensionPage.locator(".open-settings-button").click(),
+      extensionPage.getByTestId("open-settings").click(),
     ]);
     await optionsPage.waitForLoadState("domcontentloaded");
     await expect(optionsPage.locator("h1")).toHaveText("模型设置");
-    const configInputs = optionsPage.locator(".options-card input");
+    const configInputs = optionsPage.getByTestId("options-card").locator("input");
     await expect(configInputs).toHaveCount(3);
     await configInputs.nth(0).fill("https://provider.test/v1");
     await configInputs.nth(1).fill("test-model");
     await configInputs.nth(2).fill("test-key");
-    await expect(extensionPage.locator(".config-card")).toContainText("尚未配置模型");
+    await expect(extensionPage.getByTestId("config-card")).toContainText("尚未配置模型");
     await optionsPage.getByRole("button", { name: "保存配置" }).click();
     await expect(optionsPage.locator(".save-message.saved")).toBeVisible();
-    await expect(extensionPage.locator(".config-card")).toContainText("配置已保存");
+    await expect(extensionPage.getByTestId("config-card")).toContainText("配置已保存");
     await optionsPage.close();
 
-    const composer = extensionPage.locator("textarea");
+    const composer = extensionPage.getByTestId("composer-input");
+    await expect(extensionPage.getByTestId("thread-viewport")).toHaveCSS("overflow-y", "auto");
     await composer.fill("first line");
     await composer.press("Meta+Enter");
     await expect(composer).toHaveValue("first line\n");
-    await composer.fill("this state must not persist");
+    await composer.fill("enter submits");
+    await composer.press("Enter");
+    await expect(extensionPage.locator('[data-role="user"]')).toContainText("enter submits");
     expect(await composer.getAttribute("maxlength")).toBeNull();
     await extensionPage.close();
     const reopened = await context.newPage();
     await reopened.goto(`chrome-extension://${extensionId}/sidepanel.html`);
-    await expect(reopened.locator("textarea")).toHaveValue("");
-    await expect(reopened.locator(".config-card")).toContainText("配置已保存");
-    await expect(reopened.locator(".config-card input")).toHaveCount(0);
+    await expect(reopened.getByTestId("composer-input")).toHaveValue("");
+    await expect(reopened.getByTestId("config-card")).toContainText("配置已保存");
+    await expect(reopened.getByTestId("config-card").locator("input")).toHaveCount(0);
     await expect(reopened.locator(".clear-config-button")).toHaveCount(0);
 
     const target = await context.newPage();
