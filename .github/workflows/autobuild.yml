@@ -49,7 +49,7 @@ jobs:
 
           archive="$RUNNER_TEMP/side-agent-runtime-autobuild.zip"
           (cd dist && zip -qr "$archive" . -x '*.DS_Store')
-          sha256sum "$archive" > "$archive.sha256"
+          (cd "$(dirname "$archive")" && sha256sum "$(basename "$archive")" > "$(basename "$archive").sha256")
 
           echo "ARCHIVE=$archive" >> "$GITHUB_ENV"
           echo "CHECKSUM=$archive.sha256" >> "$GITHUB_ENV"
