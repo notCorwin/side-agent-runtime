@@ -1,6 +1,6 @@
 import type { ToolCallMessagePartComponent } from "@assistant-ui/react";
 import { CheckCircle2, CircleAlert, LoaderCircle } from "lucide-react";
-import { extractChromeToolMeta } from "../chrome/tool";
+import { readChromeToolMeta } from "./chrome-tool-metadata";
 import { formatToolLabel } from "./tool-label";
 import { ToolFallback } from "../components/assistant-ui/tool-fallback";
 
@@ -22,12 +22,8 @@ function statusLabel(status: "running" | "complete" | "error"): string {
 export const ChromeToolCall: ToolCallMessagePartComponent = (part) => {
   if (part.toolName !== "chrome") return <ToolFallback {...part} />;
 
-  let label = "Chrome API";
-  try {
-    label = formatToolLabel(extractChromeToolMeta(part.args));
-  } catch {
-    // Tool arguments can be partial while they stream; the raw JSON remains useful.
-  }
+  const meta = readChromeToolMeta(part.providerMetadata);
+  const label = meta ? formatToolLabel(meta) : "";
 
   const running = part.status.type === "running";
   const isError = part.isError === true || part.status.type === "incomplete";

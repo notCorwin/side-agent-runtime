@@ -51,7 +51,6 @@ export function extractChromeToolMeta(input: unknown): ChromeToolMeta {
 
 export function createChromeTool(bridge: ChromeBridge) {
   return dynamicTool({
-    title: "Chrome API bridge",
     description: [
       "Use this single tool for all Chrome extension actions.",
       "Use operation=describe to discover APIs, call for chrome.* methods, waitEvent for Chrome events, and cdp for raw Chrome DevTools Protocol commands.",

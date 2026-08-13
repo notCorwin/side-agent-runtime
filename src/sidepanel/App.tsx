@@ -1,4 +1,3 @@
-import { DirectChatTransport } from "ai";
 import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
@@ -11,6 +10,7 @@ import {
   loadModelConfig,
 } from "./config";
 import { ChromeToolCall } from "./ChromeToolCall";
+import { createChromeChatTransport } from "./chrome-tool-metadata";
 import { Thread } from "../components/assistant-ui/thread";
 import "../styles.css";
 import "./styles.css";
@@ -145,7 +145,7 @@ function SidePanelLayout({
 function ConfiguredChat({ config }: { config: ModelConfig }) {
   const bridge = useMemo(() => new ChromeBridge(), []);
   const agent = useMemo(() => createAgent({ model: config, bridge }), [config, bridge]);
-  const transport = useMemo(() => new DirectChatTransport({ agent }), [agent]);
+  const transport = useMemo(() => createChromeChatTransport(agent), [agent]);
   const runtime = useChatRuntime({ transport });
 
   useEffect(() => {

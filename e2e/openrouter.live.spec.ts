@@ -32,7 +32,7 @@ test.describe("OpenRouter live agent", () => {
 
       const [optionsPage] = await Promise.all([
         context.waitForEvent("page"),
-        page.locator(".open-settings-button").click(),
+        page.getByTestId("open-settings").click(),
       ]);
       await optionsPage.waitForLoadState("domcontentloaded");
       await expect(optionsPage.locator("h1")).toHaveText("模型设置");
@@ -45,10 +45,10 @@ test.describe("OpenRouter live agent", () => {
       await expect(page.locator(".config-card")).toContainText("配置已保存");
       await optionsPage.close();
 
-      await page.locator("textarea").fill(
+      await page.getByTestId("composer-input").fill(
         "Use the chrome tool now. Call operation=call with path=tabs.query and args=[{}]. Then tell me exactly how many tabs are open. Do not answer before executing the tool call.",
       );
-      await page.locator("textarea").press("Enter");
+      await page.getByTestId("composer-input").press("Enter");
 
       const assistantMessage = page.locator('[data-role="assistant"] .markdown-body').last();
       await expect(assistantMessage).not.toHaveText("", { timeout: 180_000 });
