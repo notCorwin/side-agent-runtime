@@ -1,6 +1,6 @@
 import { dynamicTool } from "ai";
 import { z } from "zod";
-import type { ChromeToolInput } from "../types";
+import type { ChromeToolInput, ChromeToolMeta } from "../types";
 import { ChromeBridge } from "./bridge";
 
 const chromeCallArgsSchema = z.union([
@@ -30,16 +30,27 @@ const chromeToolInputSchema = z.object({
 }).passthrough();
 
 export function parseChromeToolInput(input: unknown): ChromeToolInput {
-  const parsed = chromeToolInputSchema.parse(input);
+  const candidate = typeof input === "string" ? JSON.parse(input) : input;
+  const parsed = chromeToolInputSchema.parse(candidate);
   return {
     ...parsed,
     args: parsed.args === undefined || Array.isArray(parsed.args) ? parsed.args : [parsed.args],
   } as ChromeToolInput;
 }
 
+export function extractChromeToolMeta(input: unknown): ChromeToolMeta {
+  const parsed = parseChromeToolInput(input);
+  return {
+    operation: parsed.operation,
+    path: parsed.path,
+    eventPath: parsed.eventPath,
+    action: parsed.action,
+    command: parsed.command,
+  };
+}
+
 export function createChromeTool(bridge: ChromeBridge) {
   return dynamicTool({
-    title: "Chrome API bridge",
     description: [
       "Use this single tool for all Chrome extension actions.",
       "Use operation=describe to discover APIs, call for chrome.* methods, waitEvent for Chrome events, and cdp for raw Chrome DevTools Protocol commands.",

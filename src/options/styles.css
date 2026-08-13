@@ -1,30 +1,6 @@
-:root {
-  color-scheme: dark;
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  background: #0d1017;
-  color: #e9edf5;
-}
-
-* {
-  box-sizing: border-box;
-}
-
 body {
   min-width: 320px;
   min-height: 100vh;
-  margin: 0;
-  background:
-    radial-gradient(circle at 80% 0%, rgba(89, 105, 255, 0.16), transparent 34%),
-    #0d1017;
-}
-
-button,
-input {
-  font: inherit;
-}
-
-button {
-  cursor: pointer;
 }
 
 .options-shell {
@@ -40,19 +16,13 @@ button {
 }
 
 .options-eyebrow {
-  margin: 0;
   color: #8e99b4;
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.16em;
 }
 
-h1,
-p {
-  margin: 0;
-}
-
-h1 {
+.options-header h1 {
   font-size: 28px;
   letter-spacing: -0.04em;
 }
@@ -64,65 +34,49 @@ h1 {
 }
 
 .options-card {
-  display: grid;
-  gap: 16px;
-  border: 1px solid #20283a;
-  border-radius: 16px;
+  padding: 0;
   background: rgba(19, 24, 36, 0.88);
-  padding: 22px;
 }
 
-label {
+.options-card form {
+  display: grid;
+}
+
+.options-card-header {
+  border-bottom: 1px solid rgba(41, 52, 77, 0.7);
+}
+
+.options-card-content {
+  display: grid;
+  gap: 16px;
+  padding-top: 24px;
+}
+
+.options-field {
   display: grid;
   gap: 7px;
 }
 
-label span {
+.options-field label {
   color: #aab5d0;
-  font-size: 13px;
 }
 
-input {
-  width: 100%;
-  border: 1px solid #2a344b;
-  border-radius: 10px;
-  outline: none;
+.options-field input {
   background: #0e1420;
-  color: #edf1fa;
-  padding: 12px 13px;
-}
-
-input:focus {
-  border-color: #6876ff;
-  box-shadow: 0 0 0 3px rgba(104, 118, 255, 0.13);
-}
-
-input:disabled {
-  cursor: not-allowed;
-  opacity: 0.62;
 }
 
 .options-actions {
-  display: flex;
   justify-content: flex-end;
-  padding-top: 4px;
+  gap: 10px;
+  padding-top: 22px;
 }
 
 .save-button {
-  border: 0;
-  border-radius: 9px;
-  background: #5e6cff;
-  color: white;
-  font-weight: 700;
-  padding: 10px 16px;
-}
-
-.save-button:disabled {
-  cursor: not-allowed;
-  opacity: 0.45;
+  min-width: 92px;
 }
 
 .save-message {
+  padding: 0 24px 22px;
   color: #8e99b4;
   font-size: 12px;
   line-height: 1.5;

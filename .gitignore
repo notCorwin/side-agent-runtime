@@ -1,4 +1,10 @@
 node_modules/
 dist/
 test-results/
+playwright-report/
+coverage/
+.vite/
+.env
+.env.*
+!.env.example
 .DS_Store

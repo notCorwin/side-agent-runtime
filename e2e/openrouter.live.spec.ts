@@ -32,7 +32,7 @@ test.describe("OpenRouter live agent", () => {
 
       const [optionsPage] = await Promise.all([
         context.waitForEvent("page"),
-        page.locator(".open-settings-button").click(),
+        page.getByTestId("open-settings").click(),
       ]);
       await optionsPage.waitForLoadState("domcontentloaded");
       await expect(optionsPage.locator("h1")).toHaveText("模型设置");
@@ -45,17 +45,19 @@ test.describe("OpenRouter live agent", () => {
       await expect(page.locator(".config-card")).toContainText("配置已保存");
       await optionsPage.close();
 
-      await page.locator("textarea").fill(
+      await page.getByTestId("composer-input").fill(
         "Use the chrome tool now. Call operation=call with path=tabs.query and args=[{}]. Then tell me exactly how many tabs are open. Do not answer before executing the tool call.",
       );
-      await page.locator("textarea").press("Enter");
+      await page.getByTestId("composer-input").press("Enter");
 
-      const assistantMessage = page.locator(".assistant-message .markdown-body").last();
+      const assistantMessage = page.locator('[data-role="assistant"] .markdown-body').last();
       await expect(assistantMessage).not.toHaveText("", { timeout: 180_000 });
-      await expect(page.locator(".activity.complete")).toHaveCount(1, { timeout: 180_000 });
-      await expect(page.locator(".activity.complete summary")).toContainText("tabs.query");
-      expect(await page.locator(".thinking-item").count()).toBeGreaterThan(0);
-      expect(await page.locator(".thinking-item").evaluateAll((items) => (
+      await expect(page.getByTestId("chrome-tool-call")).toHaveCount(1, { timeout: 180_000 });
+      const toolSummary = page.getByTestId("chrome-tool-call").locator("summary");
+      await expect(toolSummary).toContainText("tabs.query");
+      await expect(toolSummary).not.toContainText("chrome");
+      expect(await page.getByTestId("reasoning-item").count()).toBeGreaterThan(0);
+      expect(await page.getByTestId("reasoning-item").evaluateAll((items) => (
         items.every((item) => !item.hasAttribute("open"))
       ))).toBe(true);
       await expect(assistantMessage).toHaveText(/\d/, { timeout: 180_000 });
