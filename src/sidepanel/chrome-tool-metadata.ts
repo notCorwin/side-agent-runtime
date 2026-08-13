@@ -128,7 +128,10 @@ export function enrichChromeToolStream(
 }
 
 export function createChromeChatTransport(agent: Agent<any, any, any, any>) {
-  const direct = new DirectChatTransport({ agent });
+  const direct = new DirectChatTransport({
+    agent,
+    onError: (error) => error instanceof Error ? error.message : String(error),
+  });
 
   return {
     sendMessages: async (options: Parameters<typeof direct.sendMessages>[0]) => (

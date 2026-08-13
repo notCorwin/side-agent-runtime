@@ -3,17 +3,16 @@
 import {
   AuiIf,
   ActionBarPrimitive,
-  ComposerPrimitive,
   ErrorPrimitive,
   MessagePrimitive,
   SuggestionPrimitive,
   ThreadPrimitive,
-  useAui,
   useAuiState,
   type ToolCallMessagePartComponent,
 } from "@assistant-ui/react";
-import { ArrowDownIcon, ArrowUpIcon, PencilIcon, SquareIcon, XIcon } from "lucide-react";
-import { createContext, useContext, type ComponentType, type FC, type KeyboardEvent } from "react";
+import { ArrowDownIcon, PencilIcon } from "lucide-react";
+import { createContext, useContext, type ComponentType, type FC } from "react";
+import { LocalComposer } from "./local-composer";
 import { MarkdownText } from "./markdown-text";
 import { Reasoning } from "./reasoning";
 import { ToolFallback } from "./tool-fallback";
@@ -59,14 +58,7 @@ const ThreadRoot: FC = () => {
             </div>
           </AuiIf>
           <div data-slot="aui_message-group" className={cn("mb-10 flex flex-col gap-y-4 empty:hidden", isEmpty && "hidden")}>
-            <ThreadPrimitive.Messages>
-              {({ message }) => {
-                if (message.role === "user") {
-                  return message.composer.isEditing ? <UserEditComposer /> : <UserMessage />;
-                }
-                return <AssistantMessage />;
-              }}
-            </ThreadPrimitive.Messages>
+            <ThreadPrimitive.Messages components={THREAD_MESSAGE_COMPONENTS} />
           </div>
         </div>
         <ThreadPrimitive.ViewportFooter className={cn("aui-thread-viewport-footer mt-auto flex flex-col gap-3 bg-background px-1 pb-2", !isEmpty && "sticky bottom-0 rounded-t-xl pt-2")}>
@@ -103,97 +95,32 @@ const ThreadWelcome: FC = () => (
   </div>
 );
 
-function useComposerKeyDown() {
-  const aui = useAui();
-
-  return (event: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (event.key !== "Enter" || (!event.metaKey && !event.ctrlKey) || event.shiftKey) return;
-    event.preventDefault();
-    event.stopPropagation();
-    const textarea = event.currentTarget;
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const next = `${textarea.value.slice(0, start)}\n${textarea.value.slice(end)}`;
-    aui.composer.setText(next);
-    requestAnimationFrame(() => {
-      textarea.selectionStart = start + 1;
-      textarea.selectionEnd = start + 1;
-    });
-  };
-}
-
-const Composer: FC = () => {
-  const handleKeyDown = useComposerKeyDown();
-
-  return (
-    <ComposerPrimitive.Root className="aui-composer-root relative flex w-full flex-col">
-      <div data-slot="aui_composer-shell" className="border-border/70 focus-within:border-ring flex w-full flex-col gap-2 rounded-xl border bg-muted/30 p-2 shadow-sm transition-colors">
-        <ComposerPrimitive.Input
-          data-testid="composer-input"
-          placeholder="描述要执行的浏览器任务…"
-          className="aui-composer-input min-h-12 max-h-32 w-full resize-none bg-transparent px-2 py-1 text-sm leading-relaxed outline-none placeholder:text-muted-foreground"
-          rows={2}
-          autoFocus
-          enterKeyHint="send"
-          submitMode="enter"
-          aria-label="Message input"
-          onKeyDown={handleKeyDown}
-        />
-        <div className="flex items-center justify-end gap-1.5">
-          <AuiIf condition={(state) => !state.thread.isRunning}>
-            <ComposerPrimitive.Send asChild>
-              <TooltipIconButton tooltip="Send message" aria-label="Send message" variant="default" className="aui-composer-send size-8 rounded-full">
-                <ArrowUpIcon className="size-4" />
-              </TooltipIconButton>
-            </ComposerPrimitive.Send>
-          </AuiIf>
-          <AuiIf condition={(state) => state.thread.isRunning}>
-            <ComposerPrimitive.Cancel asChild>
-              <TooltipIconButton tooltip="Stop generating" aria-label="Stop generating" variant="default" className="aui-composer-cancel size-8 rounded-full">
-                <SquareIcon className="size-3.5 fill-current" />
-              </TooltipIconButton>
-            </ComposerPrimitive.Cancel>
-          </AuiIf>
-        </div>
-      </div>
-    </ComposerPrimitive.Root>
-  );
-};
+const Composer: FC = () => (
+  <LocalComposer
+    mode="thread"
+    inputTestId="composer-input"
+    placeholder="描述要执行的浏览器任务…"
+    inputClassName="aui-composer-input min-h-12 max-h-32 w-full resize-none overflow-y-hidden bg-transparent px-2 py-1 text-sm leading-relaxed outline-none placeholder:text-muted-foreground"
+    rootClassName="aui-composer-root relative flex w-full flex-col"
+    shellClassName="border-border/70 focus-within:border-ring flex w-full flex-col gap-2 rounded-xl border bg-muted/30 p-2 shadow-sm transition-colors"
+  />
+);
 
 const UserEditComposer: FC = () => {
-  const handleKeyDown = useComposerKeyDown();
-
   return (
     <MessagePrimitive.Root
       data-slot="aui_user-edit-message-root"
       data-role="user"
       className="user-edit-message ml-auto max-w-[94%] text-sm leading-relaxed"
     >
-      <ComposerPrimitive.Root data-testid="user-edit-composer" className="user-edit-composer">
-        <ComposerPrimitive.Input
-          data-testid="user-edit-input"
-          placeholder="编辑消息…"
-          className="user-edit-input"
-          rows={2}
-          autoFocus
-          enterKeyHint="send"
-          submitMode="enter"
-          aria-label="编辑消息"
-          onKeyDown={handleKeyDown}
-        />
-        <div className="user-edit-actions">
-          <ComposerPrimitive.Cancel asChild>
-            <TooltipIconButton tooltip="取消编辑" aria-label="取消编辑" variant="outline">
-              <XIcon className="size-3.5" aria-hidden="true" />
-            </TooltipIconButton>
-          </ComposerPrimitive.Cancel>
-          <ComposerPrimitive.Send asChild>
-            <TooltipIconButton tooltip="提交编辑" aria-label="提交编辑" variant="default">
-              <ArrowUpIcon className="size-4" />
-            </TooltipIconButton>
-          </ComposerPrimitive.Send>
-        </div>
-      </ComposerPrimitive.Root>
+      <LocalComposer
+        mode="edit"
+        rootTestId="user-edit-composer"
+        inputTestId="user-edit-input"
+        placeholder="编辑消息…"
+        inputClassName="user-edit-input"
+        rootClassName="user-edit-composer"
+      />
     </MessagePrimitive.Root>
   );
 };
@@ -247,5 +174,11 @@ const UserMessage: FC = () => (
     </ActionBarPrimitive.Root>
   </MessagePrimitive.Root>
 );
+
+const THREAD_MESSAGE_COMPONENTS = {
+  UserMessage,
+  UserEditComposer,
+  AssistantMessage,
+};
 
 export default Thread;

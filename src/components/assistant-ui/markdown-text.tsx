@@ -3,6 +3,7 @@
 import "@assistant-ui/react-markdown/styles/dot.css";
 
 import { CheckIcon, CopyIcon } from "lucide-react";
+import type { SmoothOptions } from "@assistant-ui/react";
 import { MarkdownTextPrimitive, type CodeHeaderProps } from "@assistant-ui/react-markdown";
 import remarkGfm from "remark-gfm";
 import { memo, useEffect, useState, type FC } from "react";
@@ -46,12 +47,17 @@ export const CodeBlockHeader: FC<CodeHeaderProps> = ({ language, code }) => {
   );
 };
 
+const MARKDOWN_REMARK_PLUGINS = [remarkGfm];
+const MARKDOWN_COMPONENTS = { CodeHeader: CodeBlockHeader };
+const MARKDOWN_SMOOTH_OPTIONS: SmoothOptions = { minCommitMs: 32 };
+
 const MarkdownTextImpl = () => (
   <MarkdownTextPrimitive
-    remarkPlugins={[remarkGfm]}
+    remarkPlugins={MARKDOWN_REMARK_PLUGINS}
     className="aui-md markdown-body"
-    components={{ CodeHeader: CodeBlockHeader }}
+    components={MARKDOWN_COMPONENTS}
     defer
+    smooth={MARKDOWN_SMOOTH_OPTIONS}
   />
 );
 

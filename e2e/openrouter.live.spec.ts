@@ -70,8 +70,14 @@ test.describe("OpenRouter live agent", () => {
       await page.getByRole("button", { name: "取消编辑" }).click();
 
       const renderedText = await page.locator("body").innerText();
-      expect(renderedText).toContain("chrome");
+      expect(renderedText).toContain("tabs.query");
       expect(renderedText).not.toContain(apiKey!);
+
+      await page.getByTestId("composer-input").fill(
+        "Respond with the exact text SECOND_OK and do not call any tools.",
+      );
+      await page.getByTestId("composer-input").press("Enter");
+      await expect(page.locator(".markdown-body").last()).toContainText("SECOND_OK", { timeout: 180_000 });
     } finally {
       await context.close();
       await rm(userDataDirectory, { recursive: true, force: true });

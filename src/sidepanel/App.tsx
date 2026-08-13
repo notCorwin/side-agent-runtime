@@ -154,7 +154,9 @@ function ConfiguredChat({ config }: { config: ModelConfig }) {
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
-      <Thread components={{ ToolFallback: ChromeToolCall }} />
+      <Thread components={THREAD_COMPONENTS} />
     </AssistantRuntimeProvider>
   );
 }
+
+const THREAD_COMPONENTS = { ToolFallback: ChromeToolCall };
