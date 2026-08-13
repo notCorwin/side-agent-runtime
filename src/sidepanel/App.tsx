@@ -15,6 +15,7 @@ import {
   isCompleteModelConfig,
   loadModelConfig,
 } from "./config";
+import { formatToolLabel } from "./tool-label";
 import "./styles.css";
 
 const initialConfig: ModelConfig = {
@@ -40,14 +41,6 @@ function errorText(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-function toolLabel(activity: ToolActivity): string {
-  if (activity.input && typeof activity.input === "object" && !Array.isArray(activity.input)) {
-    const path = (activity.input as { path?: unknown }).path;
-    if (typeof path === "string" && path.trim()) return path;
-  }
-  return activity.toolName;
-}
-
 function Markdown({ text }: { text: string }) {
   const html = useMemo(() => marked.parse(text, { breaks: true, gfm: true }), [text]);
   return (
@@ -64,7 +57,7 @@ function ToolDetails({ activity }: { activity: ToolActivity }) {
     <details className={`activity ${activity.status}`} open={activity.status === "running" ? true : undefined}>
       <summary>
         <span className="activity-dot" />
-        <span>{toolLabel(activity)}</span>
+        <span>{formatToolLabel(activity.input)}</span>
         <span className="activity-status">{activity.status}</span>
       </summary>
       <div className="activity-content">
