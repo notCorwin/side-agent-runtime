@@ -74,7 +74,95 @@ test("loads the MV3 side panel and can use Chrome debugger from an extension pag
     expect(manifest.manifest_version).toBe(3);
     expect(manifest.minimum_chrome_version).toBe("125");
     expect(manifest.options_page).toBe("options.html");
-    expect(manifest.permissions).toContain("debugger");
+    const desktopPermissions = [
+      "declarativeContent",
+      "declarativeNetRequestFeedback",
+      "desktopCapture",
+      "downloads.open",
+      "downloads.ui",
+      "favicon",
+      "fontSettings",
+      "gcm",
+      "geolocation",
+      "identity",
+      "identity.email",
+      "nativeMessaging",
+      "pageCapture",
+      "power",
+      "readingList",
+      "search",
+      "system.cpu",
+      "system.display",
+      "system.memory",
+      "system.storage",
+      "tabCapture",
+      "tabGroups",
+      "tts",
+      "unlimitedStorage",
+      "webAuthenticationProxy",
+    ];
+    expect(manifest.permissions).toEqual(expect.arrayContaining(["debugger", ...desktopPermissions]));
+    expect(manifest.permissions).not.toContain("webRequestBlocking");
+
+    const permissionAndApiState = await extensionPage.evaluate(async () => {
+      const granted = await chrome.permissions.getAll();
+      return {
+        grantedPermissions: granted.permissions,
+        apis: {
+          desktopCapture: typeof chrome.desktopCapture,
+          fontSettings: typeof chrome.fontSettings,
+          pageCapture: typeof chrome.pageCapture,
+          readingList: typeof chrome.readingList,
+          search: typeof chrome.search,
+          system: typeof chrome.system,
+          tabCapture: typeof chrome.tabCapture,
+          tabGroups: typeof chrome.tabGroups,
+          tts: typeof chrome.tts,
+          webAuthenticationProxy: typeof chrome.webAuthenticationProxy,
+        },
+      };
+    });
+    expect(permissionAndApiState.grantedPermissions).toEqual(expect.arrayContaining(desktopPermissions));
+    expect(permissionAndApiState.apis).toEqual({
+      desktopCapture: "object",
+      fontSettings: "object",
+      pageCapture: "object",
+      readingList: "object",
+      search: "object",
+      system: "object",
+      tabCapture: "object",
+      tabGroups: "object",
+      tts: "object",
+      webAuthenticationProxy: "object",
+    });
+
+    const desktopApiSmoke = await extensionPage.evaluate(async () => {
+      const [cpu, memory, displays, fonts, voices, readingList, tabGroups] = await Promise.all([
+        chrome.system.cpu.getInfo(),
+        chrome.system.memory.getInfo(),
+        chrome.system.display.getInfo(),
+        chrome.fontSettings.getFontList(),
+        chrome.tts.getVoices(),
+        chrome.readingList.query({}),
+        chrome.tabGroups.query({}),
+      ]);
+      return {
+        cpuProcessors: cpu.numOfProcessors,
+        memoryCapacity: memory.capacity,
+        displayCount: displays.length,
+        fontCount: fonts.length,
+        voiceCount: voices.length,
+        readingListCount: readingList.length,
+        tabGroupCount: tabGroups.length,
+      };
+    });
+    expect(desktopApiSmoke.cpuProcessors).toBeGreaterThan(0);
+    expect(desktopApiSmoke.memoryCapacity).toBeGreaterThan(0);
+    expect(desktopApiSmoke.displayCount).toBeGreaterThan(0);
+    expect(desktopApiSmoke.fontCount).toBeGreaterThan(0);
+    expect(desktopApiSmoke.voiceCount).toBeGreaterThanOrEqual(0);
+    expect(desktopApiSmoke.readingListCount).toBeGreaterThanOrEqual(0);
+    expect(desktopApiSmoke.tabGroupCount).toBeGreaterThanOrEqual(0);
     await expect.poll(() => extensionPage.evaluate(() => chrome.sidePanel.getPanelBehavior()))
       .toMatchObject({ openPanelOnActionClick: true });
 
