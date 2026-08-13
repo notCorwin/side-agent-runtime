@@ -36,7 +36,7 @@ p {
 
 .app-eyebrow {
   margin-bottom: 4px;
-  color: #8e99b4;
+  color: var(--muted-foreground);
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.16em;
@@ -51,9 +51,9 @@ p {
   display: grid;
   flex: 0 0 auto;
   gap: 8px;
-  border: 1px solid #20283a;
+  border: 1px solid var(--border);
   border-radius: 12px;
-  background: rgba(19, 24, 36, 0.86);
+  background: var(--card);
   padding: 11px;
 }
 
@@ -71,34 +71,34 @@ p {
 }
 
 .config-saved strong {
-  color: #dce3f6;
+  color: var(--foreground);
   font-size: 12px;
 }
 
 .config-saved span,
 .config-status {
-  color: #74809d;
+  color: var(--muted-foreground);
   font-size: 10px;
   line-height: 1.4;
 }
 
 .config-status {
-  color: #ff9bb2;
+  color: var(--destructive);
 }
 
 .open-settings-button {
   flex: 0 0 auto;
-  border: 1px solid #36426d;
+  border: 1px solid var(--border);
   border-radius: 7px;
-  background: #1c2543;
-  color: #c6ceff;
+  background: var(--secondary);
+  color: var(--secondary-foreground);
   font-size: 11px;
   padding: 6px 9px;
 }
 
 .open-settings-button:hover {
-  border-color: #6876ff;
-  background: #26315a;
+  border-color: var(--ring);
+  background: var(--accent);
 }
 
 .chat-scroll {
@@ -125,7 +125,7 @@ p {
   align-content: center;
   flex: 1;
   gap: 8px;
-  color: #8e99b4;
+  color: var(--muted-foreground);
   text-align: center;
 }
 
@@ -134,15 +134,15 @@ p {
   width: 42px;
   height: 42px;
   place-items: center;
-  border: 1px solid #303d69;
+  border: 1px solid var(--border);
   border-radius: 14px;
-  background: #171d35;
-  color: #aeb8ff;
+  background: var(--muted);
+  color: var(--foreground);
   font-size: 22px;
 }
 
 .empty-state h2 {
-  color: #e9edf5;
+  color: var(--foreground);
   font-size: 16px;
 }
 
@@ -163,7 +163,7 @@ p {
 
 .markdown-body {
   overflow-wrap: anywhere;
-  color: #e9edf5;
+  color: var(--foreground);
 }
 
 .markdown-body > :first-child {
@@ -177,9 +177,9 @@ p {
 .markdown-body pre {
   max-width: 100%;
   overflow-x: auto;
-  border: 1px solid #29344d;
+  border: 1px solid var(--border);
   border-radius: 8px;
-  background: #0e1420;
+  background: var(--muted);
   padding: 9px;
   font-size: 11px;
 }
@@ -196,9 +196,9 @@ p {
 .thinking-item,
 .tool-group,
 .activity {
-  border: 1px solid #29344d;
+  border: 1px solid var(--border);
   border-radius: 9px;
-  background: rgba(17, 23, 36, 0.62);
+  background: var(--card);
 }
 
 .thinking-item summary,
@@ -210,7 +210,7 @@ p {
   cursor: pointer;
   list-style: none;
   padding: 8px 10px;
-  color: #b9c3df;
+  color: var(--foreground);
   font-size: 11px;
 }
 
@@ -224,46 +224,53 @@ p {
 .activity-icon {
   width: 14px;
   height: 14px;
-  color: #aeb8ff;
+  color: var(--foreground);
+}
+
+.tool-group-icon {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  color: var(--foreground);
 }
 
 .thinking-status,
 .activity-status {
   margin-left: auto;
-  color: #74809d;
+  color: var(--muted-foreground);
   font-size: 10px;
 }
 
 .thinking-body,
 .tool-group-content,
 .activity-content {
-  border-top: 1px solid #222c40;
-  color: #9aa7c4;
+  border-top: 1px solid var(--border);
+  color: var(--muted-foreground);
   font-size: 11px;
   line-height: 1.55;
   padding: 9px 10px 10px;
 }
 
 .activity.running {
-  border-color: #4b5ba7;
+  border-color: var(--ring);
 }
 
 .activity.complete .activity-icon {
-  color: #5ee0a1;
+  color: var(--foreground);
 }
 
 .activity.error {
-  border-color: #a64a63;
+  border-color: var(--destructive);
 }
 
 .activity.error .activity-icon {
-  color: #ff9bb2;
+  color: var(--destructive);
 }
 
 .activity-content strong {
   display: block;
   margin: 5px 0 4px;
-  color: #b9c3df;
+  color: var(--foreground);
   font-size: 10px;
 }
 
@@ -276,8 +283,8 @@ p {
   margin: 0;
   overflow: auto;
   border-radius: 6px;
-  background: #0e1420;
-  color: #d7def0;
+  background: var(--muted);
+  color: var(--foreground);
   padding: 7px;
   white-space: pre-wrap;
   overflow-wrap: anywhere;

@@ -21,9 +21,9 @@ export function ToolGroup({ children, startIndex, endIndex }: ToolGroupProps) {
     <details className="tool-group" data-slot="aui_tool-group" open={running}>
       <summary>
         {running ? (
-          <LoaderCircle className="animate-spin" aria-hidden="true" />
+          <LoaderCircle className="tool-group-icon animate-spin" aria-hidden="true" />
         ) : (
-          <WrenchIcon aria-hidden="true" />
+          <WrenchIcon className="tool-group-icon" aria-hidden="true" />
         )}
         <span>{count === 1 ? "Tool call" : `${count} tool calls`}</span>
         <span className="thinking-status">{running ? "running" : "complete"}</span>

@@ -3,6 +3,20 @@ import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 
+type ColorScheme = "light" | "dark";
+
+function assertNeutralColors(colors: string[]) {
+  for (const color of colors) {
+    const match = color.match(/rgba?\(([^)]+)\)/);
+    if (!match) continue;
+    const channels = match[1]
+      .split(",")
+      .slice(0, 3)
+      .map((channel) => Number.parseFloat(channel.trim()));
+    expect(channels.every((channel) => channel === channels[0])).toBe(true);
+  }
+}
+
 test("loads the MV3 side panel and can use Chrome debugger from an extension page", async () => {
   const extensionPath = resolve(process.cwd(), "dist");
   const userDataDirectory = await mkdtemp(resolve(tmpdir(), "side-agent-e2e-"));
@@ -114,6 +128,82 @@ test("loads the MV3 side panel and can use Chrome debugger from an extension pag
     }, target.url());
 
     expect(debuggerResult).toMatchObject({ result: { value: "Side Agent E2E" } });
+  } finally {
+    await context.close();
+  }
+});
+
+test("follows the system color scheme with a grayscale palette", async () => {
+  const extensionPath = resolve(process.cwd(), "dist");
+  const userDataDirectory = await mkdtemp(resolve(tmpdir(), "side-agent-theme-e2e-"));
+  const context = await chromium.launchPersistentContext(userDataDirectory, {
+    executablePath: chromium.executablePath(),
+    headless: true,
+    colorScheme: "light",
+    args: [
+      `--disable-extensions-except=${extensionPath}`,
+      `--load-extension=${extensionPath}`,
+      "--no-sandbox",
+    ],
+  });
+
+  try {
+    let serviceWorker = context.serviceWorkers()[0];
+    if (!serviceWorker) serviceWorker = await context.waitForEvent("serviceworker");
+    const extensionId = new URL(serviceWorker.url()).hostname;
+    const sidepanel = await context.newPage();
+    const optionsPage = await context.newPage();
+    await sidepanel.goto(`chrome-extension://${extensionId}/sidepanel.html`);
+    await optionsPage.goto(`chrome-extension://${extensionId}/options.html`);
+    await expect(sidepanel.getByTestId("config-card")).toBeVisible();
+    await expect(optionsPage.getByTestId("options-card")).toBeVisible();
+
+    for (const colorScheme of ["light", "dark"] as const satisfies readonly ColorScheme[]) {
+      await sidepanel.emulateMedia({ colorScheme });
+      await optionsPage.emulateMedia({ colorScheme });
+
+      await expect.poll(() => sidepanel.evaluate(() => getComputedStyle(document.documentElement).colorScheme)).toBe(colorScheme);
+      await expect.poll(() => optionsPage.evaluate(() => getComputedStyle(document.documentElement).colorScheme)).toBe(colorScheme);
+
+      const sidepanelTheme = await sidepanel.evaluate(() => {
+        const elements = [
+          document.body,
+          document.querySelector<HTMLElement>(".config-card"),
+          document.querySelector<HTMLElement>(".open-settings-button"),
+          document.querySelector<HTMLElement>(".empty-icon"),
+        ].filter((element): element is HTMLElement => Boolean(element));
+        const colors = elements.flatMap((element) => {
+          const styles = getComputedStyle(element);
+          return [styles.backgroundColor, styles.color, styles.borderTopColor, styles.borderBottomColor];
+        });
+        return {
+          bodyBackground: getComputedStyle(document.body).backgroundColor,
+          colors,
+        };
+      });
+      const optionsTheme = await optionsPage.evaluate(() => {
+        const elements = [
+          document.body,
+          document.querySelector<HTMLElement>(".options-card"),
+          document.querySelector<HTMLElement>(".options-card input"),
+          document.querySelector<HTMLElement>(".options-card button"),
+        ].filter((element): element is HTMLElement => Boolean(element));
+        const colors = elements.flatMap((element) => {
+          const styles = getComputedStyle(element);
+          return [styles.backgroundColor, styles.color, styles.borderTopColor, styles.borderBottomColor];
+        });
+        return {
+          bodyBackground: getComputedStyle(document.body).backgroundColor,
+          colors,
+        };
+      });
+
+      const expectedBackground = colorScheme === "light" ? "rgb(255, 255, 255)" : "rgb(0, 0, 0)";
+      expect(sidepanelTheme.bodyBackground).toBe(expectedBackground);
+      expect(optionsTheme.bodyBackground).toBe(expectedBackground);
+      assertNeutralColors(sidepanelTheme.colors);
+      assertNeutralColors(optionsTheme.colors);
+    }
   } finally {
     await context.close();
   }

@@ -1,29 +1,57 @@
 @import "tailwindcss";
 
 :root {
-  color-scheme: dark;
+  color-scheme: light;
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  background: #0d1017;
-  color: #e9edf5;
-  --background: #0d1017;
-  --foreground: #e9edf5;
-  --card: #131824;
-  --card-foreground: #e9edf5;
-  --popover: #131824;
-  --popover-foreground: #e9edf5;
-  --primary: #7d8cff;
-  --primary-foreground: #0d1017;
-  --secondary: #20283a;
-  --secondary-foreground: #e9edf5;
-  --muted: #1a2232;
-  --muted-foreground: #8e99b4;
-  --accent: #202941;
-  --accent-foreground: #edf1fa;
-  --destructive: #b84564;
-  --border: #29344d;
-  --input: #2a344b;
-  --ring: #6876ff;
-  --radius: 0.75rem;
+  background: #ffffff;
+  color: #171717;
+  --background: #ffffff;
+  --foreground: #171717;
+  --card: #ffffff;
+  --card-foreground: #171717;
+  --popover: #ffffff;
+  --popover-foreground: #171717;
+  --primary: #171717;
+  --primary-foreground: #ffffff;
+  --secondary: #f5f5f5;
+  --secondary-foreground: #171717;
+  --muted: #f5f5f5;
+  --muted-foreground: #737373;
+  --accent: #f5f5f5;
+  --accent-foreground: #171717;
+  --destructive: #262626;
+  --destructive-foreground: #ffffff;
+  --border: #e5e5e5;
+  --input: #d4d4d4;
+  --ring: #737373;
+  --radius: 0.625rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    background: #000000;
+    color: #ededed;
+    --background: #000000;
+    --foreground: #ededed;
+    --card: #0a0a0a;
+    --card-foreground: #ededed;
+    --popover: #0a0a0a;
+    --popover-foreground: #ededed;
+    --primary: #ededed;
+    --primary-foreground: #000000;
+    --secondary: #1f1f1f;
+    --secondary-foreground: #ededed;
+    --muted: #111111;
+    --muted-foreground: #a3a3a3;
+    --accent: #1f1f1f;
+    --accent-foreground: #f5f5f5;
+    --destructive: #e5e5e5;
+    --destructive-foreground: #000000;
+    --border: #2e2e2e;
+    --input: #3f3f46;
+    --ring: #a3a3a3;
+  }
 }
 
 @theme inline {
@@ -42,6 +70,7 @@
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -63,9 +92,7 @@ body,
 
 body {
   margin: 0;
-  background:
-    radial-gradient(circle at 80% 0%, rgba(89, 105, 255, 0.16), transparent 34%),
-    var(--background);
+  background: var(--background);
   color: var(--foreground);
 }
 

@@ -173,7 +173,7 @@ const AssistantMessage: FC = () => {
           }}
         />
         <MessagePrimitive.Error>
-          <ErrorPrimitive.Root className="mt-2 rounded-md border border-destructive bg-destructive/10 p-2 text-xs text-red-200">
+          <ErrorPrimitive.Root className="mt-2 rounded-md border border-destructive bg-destructive/10 p-2 text-xs text-destructive-foreground">
             <ErrorPrimitive.Message />
           </ErrorPrimitive.Root>
         </MessagePrimitive.Error>
