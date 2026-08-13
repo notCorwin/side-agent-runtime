@@ -280,7 +280,11 @@ export class ChromeBridge {
       ...this.debuggerSessions.get(input.tabId)!,
       ...(input.sessionId ? { sessionId: input.sessionId } : {}),
     };
-    const params = resolveHandles(input.params ?? {}, this.handles);
+    if (input.params === undefined) {
+      return debuggerApi.sendCommand(activeSession, input.command);
+    }
+
+    const params = resolveHandles(input.params, this.handles);
     return debuggerApi.sendCommand(activeSession, input.command, params);
   }
 }

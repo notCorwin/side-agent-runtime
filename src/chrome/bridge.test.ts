@@ -149,6 +149,7 @@ describe("ChromeBridge", () => {
   it("supports raw CDP attach, send, and detach", async () => {
     const fake = fakeChrome();
     const bridge = new ChromeBridge({ chromeApi: fake.chromeApi as never });
+    const sendCommand = fake.chromeApi.debugger.sendCommand;
 
     await expect(bridge.execute({ operation: "cdp", action: "attach", tabId: 7 })).resolves.toEqual({
       ok: true,
@@ -164,6 +165,42 @@ describe("ChromeBridge", () => {
       ok: true,
       value: { command: "Runtime.evaluate", params: { expression: "document.title" }, result: "ok" },
     });
+    expect(sendCommand).toHaveBeenLastCalledWith(
+      { tabId: 7 },
+      "Runtime.evaluate",
+      { expression: "document.title" },
+    );
+    expect(sendCommand.mock.calls.at(-1)).toHaveLength(3);
+
+    await expect(bridge.execute({
+      operation: "cdp",
+      action: "send",
+      tabId: 7,
+      command: "Page.enable",
+    })).resolves.toEqual({
+      ok: true,
+      value: {
+        command: "Page.enable",
+        params: { $type: "undefined", value: null },
+        result: "ok",
+      },
+    });
+    expect(sendCommand).toHaveBeenLastCalledWith({ tabId: 7 }, "Page.enable");
+    expect(sendCommand.mock.calls.at(-1)).toHaveLength(2);
+
+    await expect(bridge.execute({
+      operation: "cdp",
+      action: "send",
+      tabId: 7,
+      command: "Runtime.enable",
+      params: {},
+    })).resolves.toEqual({
+      ok: true,
+      value: { command: "Runtime.enable", params: {}, result: "ok" },
+    });
+    expect(sendCommand).toHaveBeenLastCalledWith({ tabId: 7 }, "Runtime.enable", {});
+    expect(sendCommand.mock.calls.at(-1)).toHaveLength(3);
+
     await expect(bridge.execute({ operation: "cdp", action: "detach", tabId: 7 })).resolves.toEqual({
       ok: true,
       value: { detached: true, tabId: 7 },
