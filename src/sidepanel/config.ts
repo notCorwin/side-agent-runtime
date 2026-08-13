@@ -1,0 +1,54 @@
+import type { ModelConfig } from "../types";
+
+export const MODEL_CONFIG_STORAGE_KEY = "side-agent:model-config";
+
+export type PersistedModelConfig = Pick<ModelConfig, "baseURL" | "apiKey" | "model">;
+
+export type StorageAreaLike = Pick<chrome.storage.StorageArea, "get" | "set" | "remove">;
+
+export function isCompleteModelConfig(config: PersistedModelConfig): boolean {
+  return Boolean(config.baseURL.trim() && config.apiKey.trim() && config.model.trim());
+}
+
+function getStorageArea(): StorageAreaLike | null {
+  if (typeof chrome === "undefined" || !chrome.storage?.local) return null;
+  return chrome.storage.local;
+}
+
+export async function loadModelConfig(
+  fallback: PersistedModelConfig,
+  storage = getStorageArea(),
+): Promise<PersistedModelConfig> {
+  if (!storage) return fallback;
+
+  const stored = await storage.get(MODEL_CONFIG_STORAGE_KEY);
+  const value = stored[MODEL_CONFIG_STORAGE_KEY];
+  if (!value || typeof value !== "object") return fallback;
+
+  const candidate = value as Partial<Record<keyof PersistedModelConfig, unknown>>;
+  return {
+    baseURL: typeof candidate.baseURL === "string" ? candidate.baseURL : fallback.baseURL,
+    apiKey: typeof candidate.apiKey === "string" ? candidate.apiKey : fallback.apiKey,
+    model: typeof candidate.model === "string" ? candidate.model : fallback.model,
+  };
+}
+
+export async function saveModelConfig(
+  config: PersistedModelConfig,
+  storage = getStorageArea(),
+): Promise<void> {
+  if (!storage) throw new Error("Chrome storage is unavailable");
+
+  await storage.set({
+    [MODEL_CONFIG_STORAGE_KEY]: {
+      baseURL: config.baseURL.trim(),
+      apiKey: config.apiKey,
+      model: config.model.trim(),
+    } satisfies PersistedModelConfig,
+  });
+}
+
+export async function clearModelConfig(storage = getStorageArea()): Promise<void> {
+  if (!storage) throw new Error("Chrome storage is unavailable");
+  await storage.remove(MODEL_CONFIG_STORAGE_KEY);
+}

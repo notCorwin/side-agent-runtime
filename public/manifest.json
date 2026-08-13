@@ -1,0 +1,50 @@
+{
+  "manifest_version": 3,
+  "name": "Side Agent Runtime",
+  "version": "0.1.0",
+  "description": "A side-panel AI agent with a dynamic Chrome API bridge.",
+  "minimum_chrome_version": "125",
+  "action": {
+    "default_title": "Open Side Agent"
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
+  "permissions": [
+    "activeTab",
+    "alarms",
+    "bookmarks",
+    "browsingData",
+    "clipboardRead",
+    "clipboardWrite",
+    "contentSettings",
+    "contextMenus",
+    "cookies",
+    "debugger",
+    "declarativeNetRequest",
+    "declarativeNetRequestWithHostAccess",
+    "downloads",
+    "history",
+    "idle",
+    "management",
+    "notifications",
+    "offscreen",
+    "privacy",
+    "proxy",
+    "scripting",
+    "sessions",
+    "sidePanel",
+    "storage",
+    "tabs",
+    "topSites",
+    "userScripts",
+    "webNavigation",
+    "webRequest",
+    "windows"
+  ],
+  "host_permissions": ["<all_urls>"]
+}
