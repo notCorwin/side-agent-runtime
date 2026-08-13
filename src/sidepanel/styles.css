@@ -83,12 +83,16 @@ p {
   flex: 1 1 auto;
   flex-direction: column;
   overflow-x: hidden;
-  overflow-y: auto;
+  overflow-y: hidden;
 }
 
 .aui-thread-root {
   --thread-max-width: 44rem;
   min-height: 0;
+}
+
+.aui-thread-content {
+  flex: 1 0 auto;
 }
 
 .aui-thread-viewport-footer {
@@ -128,12 +132,21 @@ p {
   line-height: 1.5;
 }
 
-.message.user {
-  align-self: flex-end;
+.user-message-row {
+  display: flex;
+  width: min(94%, 30rem);
+  flex-direction: column;
+  align-items: flex-end;
 }
 
 .user-message-content {
   overflow-wrap: anywhere;
+}
+
+.assistant-message-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .user-message-actions {
@@ -145,8 +158,8 @@ p {
   transition: opacity 120ms ease;
 }
 
-.message.user:hover .user-message-actions,
-.message.user:focus-within .user-message-actions {
+.user-message-row:hover .user-message-actions,
+.user-message-row:focus-within .user-message-actions {
   opacity: 1;
   pointer-events: auto;
 }
@@ -288,9 +301,9 @@ p {
 .thinking-item,
 .tool-group,
 .activity {
-  border: 1px solid var(--border);
-  border-radius: 9px;
-  background: var(--card);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
 }
 
 .thinking-item summary,
@@ -336,7 +349,6 @@ p {
 .thinking-body,
 .tool-group-content,
 .activity-content {
-  border-top: 1px solid var(--border);
   color: var(--muted-foreground);
   font-size: 11px;
   line-height: 1.55;
@@ -344,7 +356,7 @@ p {
 }
 
 .activity.running {
-  border-color: var(--ring);
+  background: transparent;
 }
 
 .activity.complete .activity-icon {
@@ -352,7 +364,7 @@ p {
 }
 
 .activity.error {
-  border-color: var(--destructive);
+  background: transparent;
 }
 
 .activity.error .activity-icon {

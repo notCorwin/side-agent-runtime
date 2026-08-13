@@ -9,23 +9,19 @@ import {
   ThreadPrimitive,
   useAui,
   useAuiState,
-  type ReasoningGroupComponent,
   type ToolCallMessagePartComponent,
 } from "@assistant-ui/react";
 import { ArrowDownIcon, ArrowUpIcon, PencilIcon, SquareIcon, XIcon } from "lucide-react";
-import { createContext, useContext, type ComponentType, type FC, type KeyboardEvent, type PropsWithChildren } from "react";
+import { createContext, useContext, type ComponentType, type FC, type KeyboardEvent } from "react";
 import { MarkdownText } from "./markdown-text";
-import { Reasoning, ReasoningGroup } from "./reasoning";
+import { Reasoning } from "./reasoning";
 import { ToolFallback } from "./tool-fallback";
-import { ToolGroup } from "./tool-group";
 import { TooltipIconButton } from "./tooltip-icon-button";
 import { cn } from "@/lib/utils";
 
 export type ThreadComponents = {
   Welcome?: ComponentType | undefined;
   ToolFallback?: ToolCallMessagePartComponent | undefined;
-  ToolGroup?: ComponentType<PropsWithChildren<{ startIndex: number; endIndex: number }>> | undefined;
-  ReasoningGroup?: ReasoningGroupComponent | undefined;
 };
 
 export type ThreadProps = {
@@ -55,36 +51,36 @@ const ThreadRoot: FC = () => {
         data-testid="thread-viewport"
         className="relative flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto scroll-smooth"
       >
-        <div className={cn("mx-auto flex min-h-full w-full max-w-(--thread-max-width) flex-1 flex-col px-1", !isEmpty && "pt-3")}>
-          <div className={cn("flex min-h-0 flex-1 flex-col", isEmpty && "justify-center")}>
-            <AuiIf condition={() => isEmpty}>
+        <div className={cn("aui-thread-content mx-auto flex w-full max-w-(--thread-max-width) flex-col px-1", !isEmpty && "pt-3")}>
+          <AuiIf condition={() => isEmpty}>
+            <div className="aui-thread-welcome flex flex-1 items-center justify-center">
               <Welcome />
-            </AuiIf>
-            <div data-slot="aui_message-group" className="mb-10 flex flex-col gap-y-4 empty:hidden">
-              <ThreadPrimitive.Messages>
-                {({ message }) => {
-                  if (message.role === "user") {
-                    return message.composer.isEditing ? <UserEditComposer /> : <UserMessage />;
-                  }
-                  return <AssistantMessage />;
-                }}
-              </ThreadPrimitive.Messages>
             </div>
+          </AuiIf>
+          <div data-slot="aui_message-group" className={cn("mb-10 flex flex-col gap-y-4 empty:hidden", isEmpty && "hidden")}>
+            <ThreadPrimitive.Messages>
+              {({ message }) => {
+                if (message.role === "user") {
+                  return message.composer.isEditing ? <UserEditComposer /> : <UserMessage />;
+                }
+                return <AssistantMessage />;
+              }}
+            </ThreadPrimitive.Messages>
           </div>
-          <ThreadPrimitive.ViewportFooter className={cn("aui-thread-viewport-footer mt-auto flex flex-col gap-3 bg-background pb-2", !isEmpty && "sticky bottom-0 rounded-t-xl pt-2")}>
-            <ThreadPrimitive.ScrollToBottom asChild>
-              <TooltipIconButton
-                tooltip="Scroll to bottom"
-                aria-label="Scroll to bottom"
-                variant="outline"
-                className="absolute -top-10 self-center rounded-full disabled:invisible"
-              >
-                <ArrowDownIcon className="size-4" />
-              </TooltipIconButton>
-            </ThreadPrimitive.ScrollToBottom>
-            <Composer />
-          </ThreadPrimitive.ViewportFooter>
         </div>
+        <ThreadPrimitive.ViewportFooter className={cn("aui-thread-viewport-footer mt-auto flex flex-col gap-3 bg-background px-1 pb-2", !isEmpty && "sticky bottom-0 rounded-t-xl pt-2")}>
+          <ThreadPrimitive.ScrollToBottom asChild>
+            <TooltipIconButton
+              tooltip="Scroll to bottom"
+              aria-label="Scroll to bottom"
+              variant="outline"
+              className="absolute -top-10 self-center rounded-full disabled:invisible"
+            >
+              <ArrowDownIcon className="size-4" />
+            </TooltipIconButton>
+          </ThreadPrimitive.ScrollToBottom>
+          <Composer />
+        </ThreadPrimitive.ViewportFooter>
       </ThreadPrimitive.Viewport>
     </ThreadPrimitive.Root>
   );
@@ -200,24 +196,25 @@ const UserEditComposer: FC = () => {
 };
 
 const AssistantMessage: FC = () => {
-  const {
-    ToolFallback: ToolFallbackComponent = ToolFallback,
-    ToolGroup: ToolGroupComponent = ToolGroup,
-    ReasoningGroup: ReasoningGroupComponent = ReasoningGroup,
-  } = useContext(ThreadComponentsContext);
+  const { ToolFallback: ToolFallbackComponent = ToolFallback } = useContext(ThreadComponentsContext);
 
   return (
     <MessagePrimitive.Root data-slot="aui_assistant-message-root" data-role="assistant" className="assistant-message relative min-w-0 px-2 pb-2 text-sm leading-relaxed">
-      <div data-slot="aui_assistant-message-content" className="text-foreground wrap-break-word">
-        <MessagePrimitive.Parts
-          components={{
-            Text: MarkdownText,
-            Reasoning,
-            tools: { Override: ToolFallbackComponent },
-            ToolGroup: ToolGroupComponent,
-            ReasoningGroup: ReasoningGroupComponent,
+      <div data-slot="aui_assistant-message-content" className="assistant-message-content text-foreground wrap-break-word">
+        <MessagePrimitive.Parts>
+          {({ part }) => {
+            switch (part.type) {
+              case "text":
+                return <MarkdownText />;
+              case "reasoning":
+                return <Reasoning {...part} />;
+              case "tool-call":
+                return part.toolUI ?? <ToolFallbackComponent {...part} />;
+              default:
+                return null;
+            }
           }}
-        />
+        </MessagePrimitive.Parts>
         <MessagePrimitive.Error>
           <ErrorPrimitive.Root className="mt-2 rounded-md border border-destructive bg-destructive/10 p-2 text-xs text-destructive-foreground">
             <ErrorPrimitive.Message />
@@ -229,9 +226,11 @@ const AssistantMessage: FC = () => {
 };
 
 const UserMessage: FC = () => (
-  <MessagePrimitive.Root data-slot="aui_user-message-root" data-role="user" className="message user ml-auto max-w-[94%] rounded-xl border border-primary/40 bg-primary/15 px-3 py-2 text-sm leading-relaxed wrap-break-word">
-    <div className="user-message-content">
-      <MessagePrimitive.Parts />
+  <MessagePrimitive.Root data-slot="aui_user-message-root" data-role="user" className="user-message-row ml-auto text-sm leading-relaxed">
+    <div className="message user user-message-bubble max-w-full rounded-xl border border-primary/40 bg-primary/15 px-3 py-2 wrap-break-word">
+      <div className="user-message-content">
+        <MessagePrimitive.Parts />
+      </div>
     </div>
     <ActionBarPrimitive.Root className="user-message-actions">
       <ActionBarPrimitive.Edit

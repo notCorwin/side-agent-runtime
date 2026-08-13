@@ -23,6 +23,31 @@ function codeResponse(): string {
   ].join("");
 }
 
+function toolCallResponse(): string {
+  const inputs = [
+    { operation: "call", path: "tabs.query", args: [{}] },
+    { operation: "call", path: "windows.getCurrent", args: [{}] },
+  ];
+  const toolCalls = inputs.map((input, index) => ({
+    index,
+    id: `call-tool-${index + 1}`,
+    type: "function",
+    function: {
+      name: "chrome",
+      arguments: JSON.stringify(input),
+    },
+  }));
+  return [
+    chunk("", null).replace('"delta":{}', `"delta":{"role":"assistant","tool_calls":${JSON.stringify(toolCalls)}}`),
+    chunk("", "tool_calls"),
+    "data: [DONE]\n\n",
+  ].join("");
+}
+
+function textResponse(text: string): string {
+  return [chunk(text), chunk("", "stop"), "data: [DONE]\n\n"].join("");
+}
+
 async function openExtension(): Promise<{ context: BrowserContext; page: Page; userDataDirectory: string }> {
   const extensionPath = resolve(process.cwd(), "dist");
   const userDataDirectory = await mkdtemp(resolve(tmpdir(), "side-agent-assistant-ui-e2e-"));
@@ -90,11 +115,70 @@ test("renders copyable assistant code and supports editing user messages", async
 
     const userMessage = page.locator('[data-role="user"]').last();
     await userMessage.hover();
-    await userMessage.getByTestId("edit-message-button").click();
+    const editButton = userMessage.getByTestId("edit-message-button");
+    const bubble = userMessage.locator(".user-message-bubble");
+    const [editBox, bubbleBox] = await Promise.all([editButton.boundingBox(), bubble.boundingBox()]);
+    expect(editBox).not.toBeNull();
+    expect(bubbleBox).not.toBeNull();
+    expect(editBox!.y).toBeGreaterThanOrEqual(bubbleBox!.y + bubbleBox!.height);
+    await editButton.click();
     await expect(page.getByTestId("user-edit-input")).toHaveValue("show me a code block");
     await page.getByTestId("user-edit-input").fill("edited request");
     await page.getByRole("button", { name: "提交编辑" }).click();
     await expect(page.locator('[data-role="user"]').last()).toContainText("edited request");
+  } finally {
+    await context.close();
+    await rm(userDataDirectory, { recursive: true, force: true });
+  }
+});
+
+test("renders each Chrome tool path without a generic tool group overlay", async () => {
+  const { context, page, userDataDirectory } = await openExtension();
+  let requestCount = 0;
+
+  try {
+    await context.route("https://provider.test/v1/chat/completions", async (route) => {
+      requestCount += 1;
+      await route.fulfill({
+        status: 200,
+        headers: {
+          "cache-control": "no-cache",
+          "content-type": "text/event-stream",
+        },
+        body: requestCount === 1 ? toolCallResponse() : textResponse("The tab query completed."),
+      });
+    });
+
+    await configureProvider(context, page);
+    await page.getByTestId("composer-input").fill("Inspect the active tabs.");
+    await page.getByTestId("composer-input").press("Enter");
+
+    await expect(page.getByTestId("chrome-tool-call")).toHaveCount(2);
+    const summaries = page.getByTestId("chrome-tool-call").locator("summary");
+    await expect(summaries.nth(0)).toContainText("tabs.query");
+    await expect(summaries.nth(1)).toContainText("windows.getCurrent");
+    expect((await summaries.allTextContents()).some((text) => text.includes("Tool call"))).toBe(false);
+    await expect(page.locator(".tool-group")).toHaveCount(0);
+    await expect(page.locator(".markdown-body").last()).toContainText("The tab query completed.");
+
+    const toolBoxes = await page.getByTestId("chrome-tool-call").evaluateAll((items) => items.map((item) => {
+      const box = item.getBoundingClientRect();
+      const styles = getComputedStyle(item);
+      return { top: box.top, bottom: box.bottom, borderWidth: styles.borderWidth };
+    }));
+    expect(toolBoxes[1].top - toolBoxes[0].bottom).toBeGreaterThanOrEqual(8);
+    expect(toolBoxes.every((box) => box.borderWidth === "0px")).toBe(true);
+
+    const layout = await page.evaluate(() => {
+      const message = document.querySelector<HTMLElement>('[data-role="assistant"]:last-of-type');
+      const footer = document.querySelector<HTMLElement>(".aui-thread-viewport-footer");
+      if (!message || !footer) throw new Error("Assistant message layout was not rendered");
+      return {
+        messageBottom: message.getBoundingClientRect().bottom,
+        footerTop: footer.getBoundingClientRect().top,
+      };
+    });
+    expect(layout.messageBottom).toBeLessThanOrEqual(layout.footerTop + 1);
   } finally {
     await context.close();
     await rm(userDataDirectory, { recursive: true, force: true });

@@ -23,6 +23,24 @@ npm run build
 
 Chrome 不允许未经过 Chrome Web Store 或企业策略签名的扩展绕过开发者模式直接安装，因此 Autobuild 使用标准的可加载扩展 ZIP，并同时提供 SHA-256 校验文件。
 
+### 安装渠道与自动更新
+
+当前 Autobuild 是开发版安装包：通过“加载已解压的扩展程序”安装后，Chrome 不会从 GitHub Release 自动更新它。更新开发版需要下载新的 ZIP、替换 `dist/` 内容并在 `chrome://extensions` 点击“重新加载”。`update_url` 也不能把一个已加载的 unpacked 扩展变成自动更新扩展。
+
+如果以后需要面向普通 Chrome 用户自动更新，优先使用 Chrome Web Store：
+
+- **Unlisted**：不出现在商店搜索中，但持有链接的用户可以安装，适合本项目的公开测试和个人分发。
+- **Private**：只允许指定测试账号或组织用户安装。
+- **Public**：面向所有用户公开发布。
+
+这三种可见性都需要经过 Chrome Web Store 审核。每次上传的新版本都必须比上一版本的 `manifest.version` 更高；还需要准备扩展图标、截图、商店描述、单一用途说明、权限理由、数据使用声明和隐私政策。当前项目暂未接入 Web Store 发布流程，也没有配置商店图标、商店资料或发布凭据。
+
+后续可以通过 Chrome Web Store Publish API 接入 GitHub Actions：在 Chrome Developer Dashboard 创建扩展条目，在 Google Cloud 启用 API 并创建 Service Account，然后把发布凭据存入 GitHub Actions Secrets。建议只在 `main` 或版本 tag 上提交商店版本；每个 commit 继续使用本节上方的 Autobuild Release，因为商店更新可能进入审核队列。
+
+完全脱离 Chrome Web Store 的自托管更新需要固定私钥签名的 `.crx`、HTTPS 更新 XML、`update_url` 和 Chrome 企业策略；Windows/macOS 普通用户不能通过普通 ZIP 或 CRX 安装这类公开自托管扩展。因此它只适合受控设备或企业环境。
+
+参考：[Chrome 扩展分发](https://developer.chrome.com/docs/extensions/how-to/distribute)、[更新生命周期](https://developer.chrome.com/docs/extensions/develop/concepts/extensions-update-lifecycle)、[Web Store 发布](https://developer.chrome.com/docs/webstore/publish/)、[Web Store API](https://developer.chrome.com/docs/webstore/using-api?authuser=2)。
+
 ## 模型配置
 
 点击 Side Panel 的“打开设置”，或在扩展详情页打开“扩展程序选项”，进入独立设置页填写：

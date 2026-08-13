@@ -61,7 +61,7 @@ test("loads the MV3 side panel and can use Chrome debugger from an extension pag
     expect(layout.bodyScrollHeight).toBe(layout.bodyHeight);
     expect(layout.shellScrollHeight).toBe(layout.shellHeight);
     expect(layout.shellOverflowY).toBe("hidden");
-    expect(layout.chatOverflowY).toBe("auto");
+    expect(layout.chatOverflowY).toBe("hidden");
 
     const mv3ScriptApis = await extensionPage.evaluate(() => ({
       legacyTabsExecuteScript: typeof chrome.tabs.executeScript,
