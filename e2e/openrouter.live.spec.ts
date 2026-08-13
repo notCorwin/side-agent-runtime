@@ -43,6 +43,7 @@ test.describe("OpenRouter live agent", () => {
       await optionsPage.getByRole("button", { name: "保存配置" }).click();
       await expect(optionsPage.locator(".save-message.saved")).toBeVisible({ timeout: 5_000 });
       await expect(page.locator(".config-card")).toContainText("配置已保存");
+      await expect(page.getByTestId("model-label")).toHaveText("Nemotron 3.5 Lightning");
       await optionsPage.close();
 
       await page.getByTestId("composer-input").fill(
@@ -61,6 +62,13 @@ test.describe("OpenRouter live agent", () => {
         items.every((item) => !item.hasAttribute("open"))
       ))).toBe(true);
       await expect(assistantMessage).toHaveText(/\d/, { timeout: 180_000 });
+
+      const userMessage = page.locator('[data-role="user"]').last();
+      await userMessage.hover();
+      await expect(userMessage.getByTestId("edit-message-button")).toBeVisible();
+      await userMessage.getByTestId("edit-message-button").click();
+      await expect(page.getByTestId("user-edit-input")).toHaveValue(/Use the chrome tool now/);
+      await page.getByRole("button", { name: "取消编辑" }).click();
 
       const renderedText = await page.locator("body").innerText();
       expect(renderedText).toContain("chrome");

@@ -34,12 +34,14 @@ p {
   gap: 12px;
 }
 
-.app-eyebrow {
-  margin-bottom: 4px;
+.app-model {
+  margin-top: 3px;
   color: var(--muted-foreground);
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.16em;
+  font-size: 11px;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .app-header h1 {
@@ -87,13 +89,16 @@ p {
 }
 
 .open-settings-button {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
   flex: 0 0 auto;
   border: 1px solid var(--border);
   border-radius: 7px;
   background: var(--secondary);
   color: var(--secondary-foreground);
-  font-size: 11px;
-  padding: 6px 9px;
+  padding: 0;
 }
 
 .open-settings-button:hover {
@@ -156,6 +161,78 @@ p {
   align-self: flex-end;
 }
 
+.user-message-content {
+  overflow-wrap: anywhere;
+}
+
+.user-message-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 4px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease;
+}
+
+.message.user:hover .user-message-actions,
+.message.user:focus-within .user-message-actions {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.user-message-edit-button {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--background);
+  color: var(--muted-foreground);
+  padding: 0;
+}
+
+.user-message-edit-button:hover,
+.user-message-edit-button:focus-visible {
+  background: var(--accent);
+  color: var(--accent-foreground);
+}
+
+.user-edit-message {
+  width: min(94%, 30rem);
+}
+
+.user-edit-composer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--card);
+  padding: 8px;
+}
+
+.user-edit-input {
+  min-height: 48px;
+  max-height: 128px;
+  width: 100%;
+  resize: none;
+  background: transparent;
+  color: var(--foreground);
+  padding: 4px;
+  outline: none;
+}
+
+.user-edit-input::placeholder {
+  color: var(--muted-foreground);
+}
+
+.user-edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
 .assistant-message {
   max-width: 100%;
   overflow-wrap: anywhere;
@@ -176,12 +253,56 @@ p {
 
 .markdown-body pre {
   max-width: 100%;
+  margin: 0;
   overflow-x: auto;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--muted);
   padding: 9px;
   font-size: 11px;
+}
+
+.markdown-code-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border: 1px solid var(--border);
+  border-bottom: 0;
+  border-radius: 8px 8px 0 0;
+  background: var(--muted);
+  color: var(--muted-foreground);
+  padding: 5px 7px 5px 9px;
+  font: 10px/1.3 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.markdown-code-header + pre {
+  border-radius: 0 0 8px 8px;
+}
+
+.markdown-code-language {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.markdown-code-copy {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--background);
+  color: var(--muted-foreground);
+  padding: 0;
+}
+
+.markdown-code-copy:hover,
+.markdown-code-copy:focus-visible {
+  background: var(--accent);
+  color: var(--accent-foreground);
 }
 
 .markdown-body code {

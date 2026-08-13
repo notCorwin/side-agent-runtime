@@ -38,6 +38,11 @@ test("loads the MV3 side panel and can use Chrome debugger from an extension pag
     await extensionPage.goto(`chrome-extension://${extensionId}/sidepanel.html`);
     await expect(extensionPage.locator("h1")).toHaveText("Side Agent Runtime");
     await expect(extensionPage.locator("[data-testid=app-eyebrow], .status-pill, .hint, .send-button, .clear-config-button")).toHaveCount(0);
+    await expect(extensionPage.getByTestId("open-settings")).toHaveAttribute("aria-label", "打开设置");
+    await expect.poll(() => extensionPage.getByTestId("open-settings").evaluate((button) => ({
+      text: button.textContent?.trim() ?? "",
+      hasIcon: Boolean(button.querySelector("svg")),
+    }))).toEqual({ text: "", hasIcon: true });
 
     const layout = await extensionPage.evaluate(() => {
       const shell = document.querySelector<HTMLElement>("[data-testid=sidepanel-shell]");
@@ -84,12 +89,13 @@ test("loads the MV3 side panel and can use Chrome debugger from an extension pag
     const configInputs = optionsPage.getByTestId("options-card").locator("input");
     await expect(configInputs).toHaveCount(3);
     await configInputs.nth(0).fill("https://provider.test/v1");
-    await configInputs.nth(1).fill("test-model");
+    await configInputs.nth(1).fill("deepseek/deepseek-v4-flash-0731:free");
     await configInputs.nth(2).fill("test-key");
     await expect(extensionPage.getByTestId("config-card")).toContainText("尚未配置模型");
     await optionsPage.getByRole("button", { name: "保存配置" }).click();
     await expect(optionsPage.locator(".save-message.saved")).toBeVisible();
     await expect(extensionPage.getByTestId("config-card")).toContainText("配置已保存");
+    await expect(extensionPage.getByTestId("model-label")).toHaveText("Deepseek V4 Flash 0731");
     await optionsPage.close();
 
     const composer = extensionPage.getByTestId("composer-input");
@@ -99,13 +105,22 @@ test("loads the MV3 side panel and can use Chrome debugger from an extension pag
     await expect(composer).toHaveValue("first line\n");
     await composer.fill("enter submits");
     await composer.press("Enter");
-    await expect(extensionPage.locator('[data-role="user"]')).toContainText("enter submits");
+    const userMessage = extensionPage.locator('[data-role="user"]').last();
+    await expect(userMessage).toContainText("enter submits");
+    await userMessage.hover();
+    const editButton = userMessage.getByTestId("edit-message-button");
+    await expect(editButton).toBeVisible();
+    await editButton.click();
+    await expect(extensionPage.getByTestId("user-edit-input")).toHaveValue("enter submits");
+    await extensionPage.getByRole("button", { name: "取消编辑" }).click();
+    await expect(extensionPage.locator('[data-role="user"]').last()).toContainText("enter submits");
     expect(await composer.getAttribute("maxlength")).toBeNull();
     await extensionPage.close();
     const reopened = await context.newPage();
     await reopened.goto(`chrome-extension://${extensionId}/sidepanel.html`);
     await expect(reopened.getByTestId("composer-input")).toHaveValue("");
     await expect(reopened.getByTestId("config-card")).toContainText("配置已保存");
+    await expect(reopened.getByTestId("model-label")).toHaveText("Deepseek V4 Flash 0731");
     await expect(reopened.getByTestId("config-card").locator("input")).toHaveCount(0);
     await expect(reopened.locator(".clear-config-button")).toHaveCount(0);
 

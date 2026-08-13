@@ -2,6 +2,7 @@
 
 import {
   AuiIf,
+  ActionBarPrimitive,
   ComposerPrimitive,
   ErrorPrimitive,
   MessagePrimitive,
@@ -11,7 +12,7 @@ import {
   type ReasoningGroupComponent,
   type ToolCallMessagePartComponent,
 } from "@assistant-ui/react";
-import { ArrowDownIcon, ArrowUpIcon, SquareIcon } from "lucide-react";
+import { ArrowDownIcon, ArrowUpIcon, PencilIcon, SquareIcon, XIcon } from "lucide-react";
 import { createContext, useContext, type ComponentType, type FC, type KeyboardEvent, type PropsWithChildren } from "react";
 import { MarkdownText } from "./markdown-text";
 import { Reasoning, ReasoningGroup } from "./reasoning";
@@ -59,7 +60,14 @@ const ThreadRoot: FC = () => {
             <Welcome />
           </AuiIf>
           <div data-slot="aui_message-group" className="mb-10 flex flex-col gap-y-4 empty:hidden">
-            <ThreadPrimitive.Messages>{() => <ThreadMessage />}</ThreadPrimitive.Messages>
+            <ThreadPrimitive.Messages>
+              {({ message }) => {
+                if (message.role === "user") {
+                  return message.composer.isEditing ? <UserEditComposer /> : <UserMessage />;
+                }
+                return <AssistantMessage />;
+              }}
+            </ThreadPrimitive.Messages>
           </div>
           <ThreadPrimitive.ViewportFooter className={cn("aui-thread-viewport-footer mt-auto flex flex-col gap-3 bg-background pb-2", !isEmpty && "sticky bottom-0 rounded-t-xl pt-2")}>
             <ThreadPrimitive.ScrollToBottom asChild>
@@ -94,17 +102,11 @@ const ThreadWelcome: FC = () => (
   </div>
 );
 
-const ThreadMessage: FC = () => {
-  const role = useAuiState((state) => state.message.role);
-  if (role === "user") return <UserMessage />;
-  return <AssistantMessage />;
-};
-
-const Composer: FC = () => {
+function useComposerKeyDown() {
   const aui = useAui();
 
-  const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (event.key !== "Enter" || !event.metaKey || event.shiftKey) return;
+  return (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key !== "Enter" || (!event.metaKey && !event.ctrlKey) || event.shiftKey) return;
     event.preventDefault();
     event.stopPropagation();
     const textarea = event.currentTarget;
@@ -117,6 +119,10 @@ const Composer: FC = () => {
       textarea.selectionEnd = start + 1;
     });
   };
+}
+
+const Composer: FC = () => {
+  const handleKeyDown = useComposerKeyDown();
 
   return (
     <ComposerPrimitive.Root className="aui-composer-root relative flex w-full flex-col">
@@ -153,6 +159,44 @@ const Composer: FC = () => {
   );
 };
 
+const UserEditComposer: FC = () => {
+  const handleKeyDown = useComposerKeyDown();
+
+  return (
+    <MessagePrimitive.Root
+      data-slot="aui_user-edit-message-root"
+      data-role="user"
+      className="user-edit-message ml-auto max-w-[94%] text-sm leading-relaxed"
+    >
+      <ComposerPrimitive.Root data-testid="user-edit-composer" className="user-edit-composer">
+        <ComposerPrimitive.Input
+          data-testid="user-edit-input"
+          placeholder="编辑消息…"
+          className="user-edit-input"
+          rows={2}
+          autoFocus
+          enterKeyHint="send"
+          submitMode="enter"
+          aria-label="编辑消息"
+          onKeyDown={handleKeyDown}
+        />
+        <div className="user-edit-actions">
+          <ComposerPrimitive.Cancel asChild>
+            <TooltipIconButton tooltip="取消编辑" aria-label="取消编辑" variant="outline">
+              <XIcon className="size-3.5" aria-hidden="true" />
+            </TooltipIconButton>
+          </ComposerPrimitive.Cancel>
+          <ComposerPrimitive.Send asChild>
+            <TooltipIconButton tooltip="提交编辑" aria-label="提交编辑" variant="default">
+              <ArrowUpIcon className="size-4" />
+            </TooltipIconButton>
+          </ComposerPrimitive.Send>
+        </div>
+      </ComposerPrimitive.Root>
+    </MessagePrimitive.Root>
+  );
+};
+
 const AssistantMessage: FC = () => {
   const {
     ToolFallback: ToolFallbackComponent = ToolFallback,
@@ -184,7 +228,19 @@ const AssistantMessage: FC = () => {
 
 const UserMessage: FC = () => (
   <MessagePrimitive.Root data-slot="aui_user-message-root" data-role="user" className="message user ml-auto max-w-[94%] rounded-xl border border-primary/40 bg-primary/15 px-3 py-2 text-sm leading-relaxed wrap-break-word">
-    <MessagePrimitive.Parts />
+    <div className="user-message-content">
+      <MessagePrimitive.Parts />
+    </div>
+    <ActionBarPrimitive.Root className="user-message-actions">
+      <ActionBarPrimitive.Edit
+        data-testid="edit-message-button"
+        className="user-message-edit-button"
+        aria-label="编辑消息"
+        title="编辑消息"
+      >
+        <PencilIcon className="size-3.5" aria-hidden="true" />
+      </ActionBarPrimitive.Edit>
+    </ActionBarPrimitive.Root>
   </MessagePrimitive.Root>
 );
 

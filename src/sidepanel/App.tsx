@@ -1,5 +1,6 @@
 import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
+import { SettingsIcon } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import type { ModelConfig } from "../types";
 import { createAgent } from "../agent/runner";
@@ -11,6 +12,7 @@ import {
 } from "./config";
 import { ChromeToolCall } from "./ChromeToolCall";
 import { createChromeChatTransport } from "./chrome-tool-metadata";
+import { formatModelDisplayName } from "./model-label";
 import { Thread } from "../components/assistant-ui/thread";
 import "../styles.css";
 import "./styles.css";
@@ -68,9 +70,10 @@ export function App() {
 
   const configured = configReady && isCompleteModelConfig(config);
   const key = `${config.baseURL}\u0000${config.model}`;
+  const modelLabel = formatModelDisplayName(config.model);
 
   return (
-    <SidePanelLayout config={config} ready={configReady} status={status}>
+    <SidePanelLayout config={config} ready={configReady} status={status} modelLabel={modelLabel}>
       {configured ? (
         <ConfiguredChat key={key} config={config} />
       ) : (
@@ -83,8 +86,15 @@ export function App() {
               : "正在检查本地保存的模型配置。"}
           </p>
           {configReady && (
-            <button type="button" className="open-settings-button" data-testid="open-settings-empty" onClick={openSettings}>
-              打开设置
+            <button
+              type="button"
+              className="open-settings-button"
+              data-testid="open-settings-empty"
+              aria-label="打开设置"
+              title="打开设置"
+              onClick={openSettings}
+            >
+              <SettingsIcon className="size-4" aria-hidden="true" />
             </button>
           )}
         </div>
@@ -97,11 +107,13 @@ function SidePanelLayout({
   config,
   ready,
   status,
+  modelLabel,
   children,
 }: {
   config: ModelConfig;
   ready: boolean;
   status: string;
+  modelLabel: string;
   children: ReactNode;
 }) {
   const configured = ready && isCompleteModelConfig(config);
@@ -109,8 +121,8 @@ function SidePanelLayout({
     <main className="app-shell" data-testid="sidepanel-shell">
       <header className="app-header">
         <div>
-          <p className="app-eyebrow">SIDE AGENT RUNTIME</p>
           <h1>Side Agent Runtime</h1>
+          {modelLabel && <p className="app-model" data-testid="model-label">{modelLabel}</p>}
         </div>
       </header>
 
@@ -128,8 +140,15 @@ function SidePanelLayout({
                   : "请先在设置页填写 Provider 配置"}
             </span>
           </div>
-          <button type="button" className="open-settings-button" data-testid="open-settings" onClick={openSettings}>
-            打开设置
+          <button
+            type="button"
+            className="open-settings-button"
+            data-testid="open-settings"
+            aria-label="打开设置"
+            title="打开设置"
+            onClick={openSettings}
+          >
+            <SettingsIcon className="size-4" aria-hidden="true" />
           </button>
         </div>
         {status && <p className="config-status" role="status">{status}</p>}
