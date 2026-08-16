@@ -106,7 +106,8 @@ export const LocalComposer: FC<LocalComposerProps> = ({
 
     aui.composer.setText(value);
     aui.composer.send();
-  }, [aui, isDisabled, isRunning, mode, queueEnabled]);
+    setLocalDraft("");
+  }, [aui, isDisabled, isRunning, mode, queueEnabled, setLocalDraft]);
 
   const handleSubmit = useCallback((event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
