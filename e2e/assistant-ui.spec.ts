@@ -179,6 +179,34 @@ test("shows three welcome suggestions and sends the selected one", async () => {
   }
 });
 
+test("clears the composer after sending a message", async () => {
+  const { context, page, userDataDirectory } = await openExtension();
+
+  try {
+    await context.route("https://provider.test/v1/chat/completions", async (route) => {
+      await route.fulfill({
+        status: 200,
+        headers: {
+          "cache-control": "no-cache",
+          "content-type": "text/event-stream",
+        },
+        body: textResponse("已收到你的消息。"),
+      });
+    });
+
+    await configureProvider(context, page);
+    const composer = page.getByTestId("composer-input");
+    await composer.fill("发送后应该清空");
+    await composer.press("Enter");
+
+    await expect(page.locator('[data-role="user"]').last()).toContainText("发送后应该清空");
+    await expect(composer).toHaveValue("");
+  } finally {
+    await context.close();
+    await rm(userDataDirectory, { recursive: true, force: true });
+  }
+});
+
 test("keeps the composer draft responsive before any assistant output", async () => {
   const { context, page, userDataDirectory } = await openExtension();
 
