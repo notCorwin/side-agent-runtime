@@ -1,18 +1,15 @@
-import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import { SettingsIcon } from "lucide-react";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import type { ModelConfig } from "../types";
-import { createAgent } from "../agent/runner";
-import { ChromeBridge } from "../chrome/bridge";
 import {
   MODEL_CONFIG_STORAGE_KEY,
   isCompleteModelConfig,
   loadModelConfig,
 } from "./config";
 import { ChromeToolCall } from "./ChromeToolCall";
-import { createChromeChatTransport } from "./chrome-tool-metadata";
 import { formatModelDisplayName } from "./model-label";
+import { useSidePanelRuntime } from "./useSidePanelRuntime";
 import { Thread } from "../components/assistant-ui/thread";
 import "../styles.css";
 import "./styles.css";
@@ -132,25 +129,7 @@ function SidePanelLayout({
 }
 
 function ConfiguredChat({ config }: { config: ModelConfig }) {
-  const bridge = useMemo(() => new ChromeBridge(), []);
-  const agent = useMemo(() => createAgent({ model: config, bridge }), [config, bridge]);
-  const transport = useMemo(() => createChromeChatTransport(agent), [agent]);
-  const runtime = useChatRuntime({
-    transport,
-    suggestions: welcomeSuggestions,
-  });
-
-  useEffect(() => {
-    const stopAndDispose = () => {
-      runtime.thread.cancelRun();
-      bridge.dispose();
-    };
-    window.addEventListener("pagehide", stopAndDispose);
-    return () => {
-      window.removeEventListener("pagehide", stopAndDispose);
-      stopAndDispose();
-    };
-  }, [bridge, runtime]);
+  const runtime = useSidePanelRuntime(config, welcomeSuggestions);
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>

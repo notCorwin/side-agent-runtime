@@ -66,7 +66,7 @@ function isPartialMatch(actual: unknown, expected: unknown): boolean {
   return false;
 }
 
-function normalizeArguments(args: unknown[] | undefined, handles: HandleStore): unknown[] {
+function normalizeArguments(args: unknown[], handles: HandleStore): unknown[] {
   return (args ?? []).map((arg) => resolveHandles(arg, handles));
 }
 
@@ -102,7 +102,7 @@ export class ChromeBridge {
           value = await this.cdp(input, signal);
           break;
         default:
-          throw new Error(`Unsupported Chrome operation: ${String(input.operation)}`);
+          throw new Error("Unsupported Chrome operation");
       }
       return { ok: true, value: serializeValue(value, this.handles) };
     } catch (error) {
@@ -157,7 +157,7 @@ export class ChromeBridge {
     return { path: path ?? "chrome", properties, permissions, handles: this.handles.describe() };
   }
 
-  private async call(input: ChromeToolInput, signal?: AbortSignal): Promise<unknown> {
+  private async call(input: Extract<ChromeToolInput, { operation: "call" }>, signal?: AbortSignal): Promise<unknown> {
     if (!input.path) throw new Error("call requires path");
     const receiver = input.receiver ? this.handles.resolve(input.receiver) : this.chromeApi;
     const { owner, value } = resolvePath(receiver, input.path);
@@ -212,7 +212,7 @@ export class ChromeBridge {
     });
   }
 
-  private waitEvent(input: ChromeToolInput, signal?: AbortSignal): Promise<unknown> {
+  private waitEvent(input: Extract<ChromeToolInput, { operation: "waitEvent" }>, signal?: AbortSignal): Promise<unknown> {
     if (!input.eventPath) throw new Error("waitEvent requires eventPath");
     const event = resolvePath(this.chromeApi, input.eventPath).value as ChromeEvent;
     if (!event || typeof event.addListener !== "function" || typeof event.removeListener !== "function") {
@@ -249,7 +249,7 @@ export class ChromeBridge {
     });
   }
 
-  private async cdp(input: ChromeToolInput, signal?: AbortSignal): Promise<unknown> {
+  private async cdp(input: Extract<ChromeToolInput, { operation: "cdp" }>, signal?: AbortSignal): Promise<unknown> {
     if (typeof input.tabId !== "number") throw new Error("cdp requires tabId");
     const debuggerApi = (this.chromeApi as any).debugger;
     if (!debuggerApi) throw new Error("chrome.debugger is unavailable or not permitted");

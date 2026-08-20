@@ -212,7 +212,7 @@ describe("ChromeBridge", () => {
     const fake = fakeChrome();
     const bridge = new ChromeBridge({ chromeApi: fake.chromeApi as never });
 
-    await expect(bridge.execute({ operation: "call", path: "tabs.fail" })).resolves.toMatchObject({
+    await expect(bridge.execute({ operation: "call", path: "tabs.fail", args: [] })).resolves.toMatchObject({
       ok: false,
       error: { name: "Error", message: "tab operation failed" },
     });
@@ -223,7 +223,7 @@ describe("ChromeBridge", () => {
     (fake.chromeApi.tabs as { large?: () => Promise<string> }).large = async () => "x".repeat(120_000);
     const bridge = new ChromeBridge({ chromeApi: fake.chromeApi as never });
 
-    const result = await bridge.execute({ operation: "call", path: "tabs.large" });
+    const result = await bridge.execute({ operation: "call", path: "tabs.large", args: [] });
     expect(result).toEqual({ ok: true, value: "x".repeat(120_000) });
   });
 });

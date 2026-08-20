@@ -29,23 +29,128 @@ const chromeToolInputSchema = z.object({
   sessionId: z.string().optional(),
 }).passthrough();
 
-export function parseChromeToolInput(input: unknown): ChromeToolInput {
+type ChromeToolCandidate = z.infer<typeof chromeToolInputSchema>;
+
+function parseCandidate(input: unknown): ChromeToolCandidate {
   const candidate = typeof input === "string" ? JSON.parse(input) : input;
-  const parsed = chromeToolInputSchema.parse(candidate);
-  return {
-    ...parsed,
-    args: parsed.args === undefined || Array.isArray(parsed.args) ? parsed.args : [parsed.args],
-  } as ChromeToolInput;
+  return chromeToolInputSchema.parse(candidate);
+}
+
+function validateChromeToolCandidate(input: ChromeToolCandidate): void {
+  if (input.operation === "call" && !input.path) {
+    throw new Error("call requires path");
+  }
+  if (input.operation === "waitEvent" && !input.eventPath) {
+    throw new Error("waitEvent requires eventPath");
+  }
+  if (input.operation === "cdp") {
+    if (typeof input.tabId !== "number") {
+      throw new Error("cdp requires tabId");
+    }
+    if (input.action !== "attach" && input.action !== "detach" && !input.command) {
+      throw new Error("cdp send requires command");
+    }
+  }
+}
+
+function normalizeArgs(args: ChromeToolCandidate["args"]): unknown[] {
+  return args === undefined || Array.isArray(args) ? args ?? [] : [args];
+}
+
+export function parseChromeToolInput(input: unknown): ChromeToolInput {
+  const parsed = parseCandidate(input);
+  validateChromeToolCandidate(parsed);
+
+  switch (parsed.operation) {
+    case "describe":
+      return {
+        operation: "describe",
+        ...(parsed.path === undefined ? {} : { path: parsed.path }),
+      };
+    case "call":
+      return {
+        operation: "call",
+        path: parsed.path!,
+        args: normalizeArgs(parsed.args),
+        ...(parsed.receiver === undefined ? {} : { receiver: parsed.receiver }),
+        ...(parsed.callbackMode === undefined ? {} : { callbackMode: parsed.callbackMode }),
+      };
+    case "waitEvent":
+      return {
+        operation: "waitEvent",
+        eventPath: parsed.eventPath!,
+        ...(parsed.match === undefined ? {} : { match: parsed.match }),
+      };
+    case "cdp":
+      if (parsed.action === "attach") {
+        return {
+          operation: "cdp",
+          action: "attach",
+          tabId: parsed.tabId!,
+          ...(parsed.sessionId === undefined ? {} : { sessionId: parsed.sessionId }),
+        };
+      }
+      if (parsed.action === "detach") {
+        return {
+          operation: "cdp",
+          action: "detach",
+          tabId: parsed.tabId!,
+          ...(parsed.sessionId === undefined ? {} : { sessionId: parsed.sessionId }),
+        };
+      }
+      return {
+        operation: "cdp",
+        action: "send",
+        tabId: parsed.tabId!,
+        command: parsed.command!,
+        ...(parsed.sessionId === undefined ? {} : { sessionId: parsed.sessionId }),
+        ...(parsed.params === undefined ? {} : { params: parsed.params }),
+      };
+  }
 }
 
 export function extractChromeToolMeta(input: unknown): ChromeToolMeta {
-  const parsed = parseChromeToolInput(input);
+  const parsed = parseCandidate(input);
+  validateChromeToolCandidate(parsed);
   return {
     operation: parsed.operation,
     path: parsed.path,
     eventPath: parsed.eventPath,
     action: parsed.action,
     command: parsed.command,
+  };
+}
+
+export function parseChromeToolMeta(value: unknown): ChromeToolMeta | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+
+  const candidate = value as Record<string, unknown>;
+  if (
+    candidate.operation !== "describe" &&
+    candidate.operation !== "call" &&
+    candidate.operation !== "waitEvent" &&
+    candidate.operation !== "cdp"
+  ) {
+    return null;
+  }
+  if (candidate.action !== undefined && !["attach", "send", "detach"].includes(String(candidate.action))) {
+    return null;
+  }
+  if (candidate.path !== undefined && typeof candidate.path !== "string") return null;
+  if (candidate.eventPath !== undefined && typeof candidate.eventPath !== "string") return null;
+  if (candidate.command !== undefined && typeof candidate.command !== "string") return null;
+  if (candidate.operation === "call" && !candidate.path) return null;
+  if (candidate.operation === "waitEvent" && !candidate.eventPath) return null;
+  if (candidate.operation === "cdp" && candidate.action !== "attach" && candidate.action !== "detach" && !candidate.command) {
+    return null;
+  }
+
+  return {
+    operation: candidate.operation,
+    ...(candidate.path === undefined ? {} : { path: candidate.path }),
+    ...(candidate.eventPath === undefined ? {} : { eventPath: candidate.eventPath }),
+    ...(candidate.action === undefined ? {} : { action: candidate.action as ChromeToolMeta["action"] }),
+    ...(candidate.command === undefined ? {} : { command: candidate.command }),
   };
 }
 

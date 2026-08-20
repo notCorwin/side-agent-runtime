@@ -15,11 +15,80 @@ describe("Chrome tool input", () => {
   });
 
   it("preserves explicit positional argument arrays", () => {
-    expect(parseChromeToolInput({
+    const parsed = parseChromeToolInput({
       operation: "call",
       path: "tabs.query",
       args: [{ active: true }, "extra"],
-    }).args).toEqual([{ active: true }, "extra"]);
+    });
+    if (parsed.operation !== "call") throw new Error("Expected a call command");
+    expect(parsed.args).toEqual([{ active: true }, "extra"]);
+  });
+
+  it("normalizes operation-specific fields and drops unknown fields", () => {
+    expect(parseChromeToolInput({
+      operation: "call",
+      path: "tabs.query",
+      args: { active: true },
+      unknownField: "ignored",
+    })).toEqual({
+      operation: "call",
+      path: "tabs.query",
+      args: [{ active: true }],
+    });
+
+    expect(parseChromeToolInput({
+      operation: "cdp",
+      tabId: 7,
+      command: "Runtime.evaluate",
+    })).toEqual({
+      operation: "cdp",
+      action: "send",
+      tabId: 7,
+      command: "Runtime.evaluate",
+    });
+  });
+
+  it("normalizes each operation shape", () => {
+    expect(parseChromeToolInput({ operation: "describe", path: "tabs" })).toEqual({
+      operation: "describe",
+      path: "tabs",
+    });
+    expect(parseChromeToolInput(JSON.stringify({
+      operation: "call",
+      path: "tabs.query",
+      args: { active: true },
+    }))).toEqual({
+      operation: "call",
+      path: "tabs.query",
+      args: [{ active: true }],
+    });
+    expect(parseChromeToolInput({
+      operation: "waitEvent",
+      eventPath: "tabs.onUpdated",
+      match: { tabId: 7 },
+    })).toEqual({
+      operation: "waitEvent",
+      eventPath: "tabs.onUpdated",
+      match: { tabId: 7 },
+    });
+    expect(parseChromeToolInput({
+      operation: "cdp",
+      action: "attach",
+      tabId: 7,
+    })).toEqual({
+      operation: "cdp",
+      action: "attach",
+      tabId: 7,
+    });
+  });
+
+  it.each([
+    [{ operation: "call" }, "call requires path"],
+    [{ operation: "waitEvent" }, "waitEvent requires eventPath"],
+    [{ operation: "cdp", action: "send", tabId: 7 }, "cdp send requires command"],
+    [{ operation: "cdp", action: "attach" }, "cdp requires tabId"],
+  ])("rejects incomplete command shapes: %o", (input, message) => {
+    expect(() => parseChromeToolInput(input)).toThrow(message);
   });
 
   it("extracts only the title metadata from a complete tool input", () => {
@@ -43,6 +112,18 @@ describe("Chrome tool input", () => {
     }))).toMatchObject({
       operation: "waitEvent",
       eventPath: "tabs.onUpdated",
+    });
+  });
+
+  it("preserves an omitted CDP action in display metadata", () => {
+    expect(extractChromeToolMeta({
+      operation: "cdp",
+      tabId: 7,
+      command: "Runtime.evaluate",
+    })).toMatchObject({
+      operation: "cdp",
+      action: undefined,
+      command: "Runtime.evaluate",
     });
   });
 });

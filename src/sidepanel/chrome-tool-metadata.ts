@@ -4,7 +4,7 @@ import {
   type ProviderMetadata,
   type UIMessageChunk,
 } from "ai";
-import { extractChromeToolMeta } from "../chrome/tool";
+import { extractChromeToolMeta, parseChromeToolMeta } from "../chrome/tool";
 import type { ChromeToolMeta, JsonValue } from "../types";
 
 export const CHROME_TOOL_METADATA_PROVIDER = "side-agent-runtime";
@@ -14,18 +14,6 @@ type ChromeToolMetadataObject = Record<string, JsonValue>;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function isChromeOperation(value: unknown): value is ChromeToolMeta["operation"] {
-  return value === "describe" || value === "call" || value === "waitEvent" || value === "cdp";
-}
-
-function isChromeAction(value: unknown): value is NonNullable<ChromeToolMeta["action"]> {
-  return value === "attach" || value === "send" || value === "detach";
-}
-
-function optionalString(value: unknown): string | undefined {
-  return typeof value === "string" ? value : undefined;
 }
 
 export function createChromeToolProviderMetadata(input: unknown): ProviderMetadata | undefined {
@@ -55,20 +43,7 @@ export function readChromeToolMeta(providerMetadata: unknown): ChromeToolMeta | 
   if (!isRecord(provider)) return null;
 
   const value = provider[CHROME_TOOL_METADATA_KEY];
-  if (!isRecord(value) || !isChromeOperation(value.operation)) return null;
-
-  const meta: ChromeToolMeta = { operation: value.operation };
-  const path = optionalString(value.path);
-  const eventPath = optionalString(value.eventPath);
-  const action = isChromeAction(value.action) ? value.action : undefined;
-  const command = optionalString(value.command);
-
-  if (path !== undefined) meta.path = path;
-  if (eventPath !== undefined) meta.eventPath = eventPath;
-  if (action !== undefined) meta.action = action;
-  if (command !== undefined) meta.command = command;
-
-  return meta;
+  return isRecord(value) ? parseChromeToolMeta(value) : null;
 }
 
 function attachProviderMetadata(

@@ -56,9 +56,21 @@ describe("Chrome tool stream metadata", () => {
 
   it("does not create metadata for incomplete or invalid input", () => {
     expect(createChromeToolProviderMetadata({ path: "tabs.query" })).toBeUndefined();
+    expect(createChromeToolProviderMetadata({ operation: "call" })).toBeUndefined();
+    expect(createChromeToolProviderMetadata({ operation: "cdp", command: "Runtime.evaluate" })).toBeUndefined();
     expect(readChromeToolMeta({
       [CHROME_TOOL_METADATA_PROVIDER]: {
         [CHROME_TOOL_METADATA_KEY]: { operation: "not-an-operation" },
+      },
+    })).toBeNull();
+    expect(readChromeToolMeta({
+      [CHROME_TOOL_METADATA_PROVIDER]: {
+        [CHROME_TOOL_METADATA_KEY]: { operation: "call" },
+      },
+    })).toBeNull();
+    expect(readChromeToolMeta({
+      [CHROME_TOOL_METADATA_PROVIDER]: {
+        [CHROME_TOOL_METADATA_KEY]: { operation: "cdp", action: "send" },
       },
     })).toBeNull();
   });
@@ -78,7 +90,12 @@ describe("Chrome tool stream metadata", () => {
           toolCallId: "success",
           output: { ok: true },
         });
-        controller.enqueue(inputChunk("failure", { operation: "cdp", action: "send", command: "Runtime.evaluate" }));
+        controller.enqueue(inputChunk("failure", {
+          operation: "cdp",
+          action: "send",
+          tabId: 7,
+          command: "Runtime.evaluate",
+        }));
         controller.enqueue({
           type: "tool-output-error",
           toolCallId: "failure",
@@ -108,5 +125,25 @@ describe("Chrome tool stream metadata", () => {
       command: "Runtime.evaluate",
     });
     expect(otherInput && providerMetadataOf(otherInput)).toBeUndefined();
+  });
+
+  it("merges canonical metadata without discarding existing provider metadata", async () => {
+    const stream = new ReadableStream<UIMessageChunk>({
+      start(controller) {
+        controller.enqueue({
+          ...inputChunk("merge", { operation: "call", path: "tabs.query" }),
+          providerMetadata: { existing: { keep: true } },
+        } as UIMessageChunk);
+        controller.close();
+      },
+    });
+
+    const [chunk] = await readChunks(enrichChromeToolStream(stream));
+    expect(providerMetadataOf(chunk)).toMatchObject({
+      existing: { keep: true },
+      [CHROME_TOOL_METADATA_PROVIDER]: {
+        [CHROME_TOOL_METADATA_KEY]: { operation: "call", path: "tabs.query" },
+      },
+    });
   });
 });
