@@ -1,7 +1,6 @@
 import type { ToolCallMessagePartComponent } from "@assistant-ui/react";
 import { CheckCircle2, CircleAlert, LoaderCircle } from "lucide-react";
-import { readChromeToolMeta } from "./chrome-tool-metadata";
-import { formatToolLabel } from "./tool-label";
+import { formatToolLabel, readChromeToolMeta } from "./chrome-tool-metadata";
 import { ToolFallback } from "../components/assistant-ui/tool-fallback";
 
 function formatJson(value: unknown): string {

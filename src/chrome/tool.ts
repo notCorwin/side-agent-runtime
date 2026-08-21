@@ -1,6 +1,6 @@
 import { dynamicTool } from "ai";
 import { z } from "zod";
-import type { ChromeToolInput, ChromeToolMeta } from "../types";
+import type { ChromeToolInput } from "../types";
 import { ChromeBridge } from "./bridge";
 
 const chromeCallArgsSchema = z.union([
@@ -107,51 +107,6 @@ export function parseChromeToolInput(input: unknown): ChromeToolInput {
         ...(parsed.params === undefined ? {} : { params: parsed.params }),
       };
   }
-}
-
-export function extractChromeToolMeta(input: unknown): ChromeToolMeta {
-  const parsed = parseCandidate(input);
-  validateChromeToolCandidate(parsed);
-  return {
-    operation: parsed.operation,
-    path: parsed.path,
-    eventPath: parsed.eventPath,
-    action: parsed.action,
-    command: parsed.command,
-  };
-}
-
-export function parseChromeToolMeta(value: unknown): ChromeToolMeta | null {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
-
-  const candidate = value as Record<string, unknown>;
-  if (
-    candidate.operation !== "describe" &&
-    candidate.operation !== "call" &&
-    candidate.operation !== "waitEvent" &&
-    candidate.operation !== "cdp"
-  ) {
-    return null;
-  }
-  if (candidate.action !== undefined && !["attach", "send", "detach"].includes(String(candidate.action))) {
-    return null;
-  }
-  if (candidate.path !== undefined && typeof candidate.path !== "string") return null;
-  if (candidate.eventPath !== undefined && typeof candidate.eventPath !== "string") return null;
-  if (candidate.command !== undefined && typeof candidate.command !== "string") return null;
-  if (candidate.operation === "call" && !candidate.path) return null;
-  if (candidate.operation === "waitEvent" && !candidate.eventPath) return null;
-  if (candidate.operation === "cdp" && candidate.action !== "attach" && candidate.action !== "detach" && !candidate.command) {
-    return null;
-  }
-
-  return {
-    operation: candidate.operation,
-    ...(candidate.path === undefined ? {} : { path: candidate.path }),
-    ...(candidate.eventPath === undefined ? {} : { eventPath: candidate.eventPath }),
-    ...(candidate.action === undefined ? {} : { action: candidate.action as ChromeToolMeta["action"] }),
-    ...(candidate.command === undefined ? {} : { command: candidate.command }),
-  };
 }
 
 export function createChromeTool(bridge: ChromeBridge) {

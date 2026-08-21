@@ -4,8 +4,8 @@ import {
   type ProviderMetadata,
   type UIMessageChunk,
 } from "ai";
-import { extractChromeToolMeta, parseChromeToolMeta } from "../chrome/tool";
-import type { ChromeToolMeta, JsonValue } from "../types";
+import { parseChromeToolInput } from "../chrome/tool";
+import type { ChromeToolMeta, ChromeToolInput, JsonValue } from "../types";
 
 export const CHROME_TOOL_METADATA_PROVIDER = "side-agent-runtime";
 export const CHROME_TOOL_METADATA_KEY = "chromeToolMeta";
@@ -16,34 +16,78 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+// Display title of a Chrome command: the four identifying fields of the parsed
+// command, nothing else. Derived by projection — never re-parsed.
+function chromeCommandMeta(command: ChromeToolInput): ChromeToolMeta {
+  return {
+    operation: command.operation,
+    path: command.operation === "describe" || command.operation === "call" ? command.path : undefined,
+    eventPath: command.operation === "waitEvent" ? command.eventPath : undefined,
+    action: command.operation === "cdp" ? command.action : undefined,
+    command: command.operation === "cdp" && command.action === "send" ? command.command : undefined,
+  };
+}
+
 export function createChromeToolProviderMetadata(input: unknown): ProviderMetadata | undefined {
+  let meta: ChromeToolMeta;
   try {
-    const meta = extractChromeToolMeta(input);
-    const serialized: ChromeToolMetadataObject = { operation: meta.operation };
-
-    if (meta.path !== undefined) serialized.path = meta.path;
-    if (meta.eventPath !== undefined) serialized.eventPath = meta.eventPath;
-    if (meta.action !== undefined) serialized.action = meta.action;
-    if (meta.command !== undefined) serialized.command = meta.command;
-
-    return {
-      [CHROME_TOOL_METADATA_PROVIDER]: {
-        [CHROME_TOOL_METADATA_KEY]: serialized,
-      },
-    };
+    meta = chromeCommandMeta(parseChromeToolInput(input));
   } catch {
     return undefined;
   }
+
+  const serialized = Object.fromEntries(
+    Object.entries(meta).filter(([, value]) => value !== undefined),
+  ) as ChromeToolMetadataObject;
+
+  return {
+    [CHROME_TOOL_METADATA_PROVIDER]: {
+      [CHROME_TOOL_METADATA_KEY]: serialized,
+    },
+  };
 }
+
+const OPERATIONS = new Set(["describe", "call", "waitEvent", "cdp"]);
+const CDP_ACTIONS = new Set(["attach", "send", "detach"]);
 
 export function readChromeToolMeta(providerMetadata: unknown): ChromeToolMeta | null {
   if (!isRecord(providerMetadata)) return null;
 
   const provider = providerMetadata[CHROME_TOOL_METADATA_PROVIDER];
-  if (!isRecord(provider)) return null;
+  const value = isRecord(provider) ? provider[CHROME_TOOL_METADATA_KEY] : undefined;
+  if (!isRecord(value) || typeof value.operation !== "string" || !OPERATIONS.has(value.operation)) return null;
+  for (const key of ["path", "eventPath", "action", "command"]) {
+    if (value[key] !== undefined && typeof value[key] !== "string") return null;
+  }
 
-  const value = provider[CHROME_TOOL_METADATA_KEY];
-  return isRecord(value) ? parseChromeToolMeta(value) : null;
+  const meta = value as unknown as ChromeToolMeta;
+  if (meta.action !== undefined && !CDP_ACTIONS.has(meta.action)) return null;
+  if (meta.operation === "call" && !meta.path) return null;
+  if (meta.operation === "waitEvent" && !meta.eventPath) return null;
+  if (meta.operation === "cdp" && meta.action !== "attach" && meta.action !== "detach" && !meta.command) return null;
+  // ponytail: guards metadata we serialized ourselves this session; round-trip
+  // through parseChromeToolInput instead if it ever crosses a persistence boundary.
+  return meta;
+}
+
+export function formatToolLabel(meta: ChromeToolMeta): string {
+  switch (meta.operation) {
+    case "call":
+      return meta.path?.trim() || "call";
+    case "describe": {
+      const path = meta.path?.trim();
+      return path ? `describe · ${path}` : "describe";
+    }
+    case "waitEvent": {
+      const eventPath = meta.eventPath?.trim();
+      return eventPath ? `waitEvent · ${eventPath}` : "waitEvent";
+    }
+    case "cdp": {
+      const command = meta.command?.trim();
+      if (command) return `cdp · ${meta.action ?? "send"} · ${command}`;
+      return meta.action ? `cdp · ${meta.action}` : "cdp";
+    }
+  }
 }
 
 function attachProviderMetadata(

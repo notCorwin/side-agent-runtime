@@ -1,24 +1,13 @@
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import { SettingsIcon } from "lucide-react";
-import { useEffect, useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import type { ModelConfig } from "../types";
-import {
-  MODEL_CONFIG_STORAGE_KEY,
-  isCompleteModelConfig,
-  loadModelConfig,
-} from "./config";
 import { ChromeToolCall } from "./ChromeToolCall";
-import { formatModelDisplayName } from "./model-label";
+import { useSidePanelSession } from "./useSidePanelSession";
 import { useSidePanelRuntime } from "./useSidePanelRuntime";
 import { Thread } from "../components/assistant-ui/thread";
 import "../styles.css";
 import "./styles.css";
-
-const initialConfig: ModelConfig = {
-  baseURL: "",
-  apiKey: "",
-  model: "",
-};
 
 const welcomeSuggestions = [
   { prompt: "移除页面广告" },
@@ -26,69 +15,27 @@ const welcomeSuggestions = [
   { prompt: "做最酷的事情" },
 ] as const;
 
-function errorText(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
-
 function openSettings(): void {
   void chrome.runtime.openOptionsPage();
 }
 
 export function App() {
-  const [config, setConfig] = useState<ModelConfig>(initialConfig);
-  const [configReady, setConfigReady] = useState(false);
-  const [status, setStatus] = useState("");
-
-  useEffect(() => {
-    let active = true;
-    const refreshConfig = async () => {
-      try {
-        const stored = await loadModelConfig(initialConfig);
-        if (!active) return;
-        setConfig(stored);
-        setStatus("");
-      } catch (error) {
-        if (!active) return;
-        setStatus(`配置读取失败：${errorText(error)}`);
-      } finally {
-        if (active) setConfigReady(true);
-      }
-    };
-    const handleStorageChange = (
-      changes: { [key: string]: chrome.storage.StorageChange },
-      areaName: string,
-    ) => {
-      if (areaName === "local" && changes[MODEL_CONFIG_STORAGE_KEY]) {
-        void refreshConfig();
-      }
-    };
-
-    void refreshConfig();
-    chrome.storage.onChanged.addListener(handleStorageChange);
-    return () => {
-      active = false;
-      chrome.storage.onChanged.removeListener(handleStorageChange);
-    };
-  }, []);
-
-  const configured = configReady && isCompleteModelConfig(config);
-  const key = `${config.baseURL}\u0000${config.model}`;
-  const modelLabel = formatModelDisplayName(config.model);
+  const session = useSidePanelSession();
 
   return (
-    <SidePanelLayout modelLabel={modelLabel}>
-      {configured ? (
-        <ConfiguredChat key={key} config={config} />
+    <SidePanelLayout modelLabel={session.modelLabel}>
+      {session.configured ? (
+        <ConfiguredChat key={session.chatKey} config={session.config} />
       ) : (
         <div className="empty-state" data-testid="config-required-state">
           <div className="empty-icon">⌘</div>
-          <h2>{configReady ? "先完成模型配置" : "正在读取配置…"}</h2>
+          <h2>{session.configReady ? "先完成模型配置" : "正在读取配置…"}</h2>
           <p>
-            {configReady
+            {session.configReady
               ? "打开设置页填写 Provider、Model ID 和 API Key，保存后即可开始对话。"
               : "正在检查本地保存的模型配置。"}
           </p>
-          {status && <p className="config-status" role="status">{status}</p>}
+          {session.status && <p className="config-status" role="status">{session.status}</p>}
         </div>
       )}
     </SidePanelLayout>

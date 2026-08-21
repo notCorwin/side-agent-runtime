@@ -16,7 +16,6 @@ import {
   type FormEvent,
   type KeyboardEvent,
 } from "react";
-import { insertNewlineAtSelection } from "./composer-utils";
 import { TooltipIconButton } from "./tooltip-icon-button";
 
 const MIN_TEXTAREA_HEIGHT = 48;
@@ -52,11 +51,13 @@ export const LocalComposer: FC<LocalComposerProps> = ({
   const isRunning = useAuiState(selectThreadRunning);
   const queueEnabled = useAuiState(selectQueueEnabled);
   const isDisabled = useAuiState(selectComposerDisabled);
-  const [draft, setDraft] = useState(externalText);
-  const draftRef = useRef(externalText);
+  // ponytail: the textarea's DOM value is the single draft store; React only
+  // mirrors a hasText flag for the send button. If external writers besides
+  // send-clear ever appear, switch back to a controlled draft.
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const composingRef = useRef(false);
   const resizeFrameRef = useRef<number | null>(null);
+  const [hasText, setHasText] = useState(() => externalText.trim().length > 0);
 
   const scheduleResize = useCallback(() => {
     if (resizeFrameRef.current !== null) return;
@@ -72,15 +73,15 @@ export const LocalComposer: FC<LocalComposerProps> = ({
     });
   }, []);
 
+  // External text changes (e.g. composer cleared after send) are the only
+  // writer besides the user typing.
   useEffect(() => {
-    draftRef.current = externalText;
-    setDraft(externalText);
+    const input = inputRef.current;
+    if (!input || input.value === externalText) return;
+    input.value = externalText;
+    setHasText(Boolean(externalText.trim()));
     scheduleResize();
   }, [externalText, scheduleResize]);
-
-  useEffect(() => {
-    scheduleResize();
-  }, [draft, scheduleResize]);
 
   useEffect(() => () => {
     if (resizeFrameRef.current !== null) window.cancelAnimationFrame(resizeFrameRef.current);
@@ -93,21 +94,23 @@ export const LocalComposer: FC<LocalComposerProps> = ({
     input.setSelectionRange(input.value.length, input.value.length);
   }, []);
 
-  const setLocalDraft = useCallback((value: string) => {
-    draftRef.current = value;
-    setDraft(value);
+  const setDraft = useCallback((value: string) => {
+    const input = inputRef.current;
+    if (!input) return;
+    input.value = value;
+    setHasText(Boolean(value.trim()));
     scheduleResize();
   }, [scheduleResize]);
 
   const submitDraft = useCallback(() => {
-    const value = inputRef.current?.value ?? draftRef.current;
+    const value = inputRef.current?.value ?? "";
     const blockedByRun = mode === "thread" && isRunning && !queueEnabled;
     if (!value.trim() || isDisabled || blockedByRun) return;
 
     aui.composer.setText(value);
     aui.composer.send();
-    setLocalDraft("");
-  }, [aui, isDisabled, isRunning, mode, queueEnabled, setLocalDraft]);
+    setDraft("");
+  }, [aui, isDisabled, isRunning, mode, queueEnabled, setDraft]);
 
   const handleSubmit = useCallback((event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -123,22 +126,18 @@ export const LocalComposer: FC<LocalComposerProps> = ({
 
     if (event.metaKey || event.ctrlKey) {
       const input = event.currentTarget;
-      const start = input.selectionStart;
-      const end = input.selectionEnd;
-      const next = insertNewlineAtSelection(input.value, start, end);
-      setLocalDraft(next);
-      requestAnimationFrame(() => {
-        if (inputRef.current !== input) return;
-        input.selectionStart = start + 1;
-        input.selectionEnd = start + 1;
-      });
+      const start = input.selectionStart ?? input.value.length;
+      const end = input.selectionEnd ?? start;
+      input.setRangeText("\n", start, end, "end");
+      setHasText(Boolean(input.value.trim()));
+      scheduleResize();
       return;
     }
 
     submitDraft();
-  }, [setLocalDraft, submitDraft]);
+  }, [scheduleResize, submitDraft]);
 
-  const canSend = draft.trim().length > 0 && !isDisabled && !(mode === "thread" && isRunning && !queueEnabled);
+  const canSend = hasText && !isDisabled && !(mode === "thread" && isRunning && !queueEnabled);
 
   return (
     <ComposerPrimitive.Root
@@ -150,7 +149,7 @@ export const LocalComposer: FC<LocalComposerProps> = ({
         <textarea
           ref={inputRef}
           data-testid={inputTestId}
-          value={draft}
+          defaultValue={externalText}
           placeholder={placeholder}
           className={inputClassName}
           rows={2}
@@ -158,7 +157,10 @@ export const LocalComposer: FC<LocalComposerProps> = ({
           autoFocus
           enterKeyHint="send"
           aria-label={mode === "edit" ? "编辑消息" : "Message input"}
-          onChange={(event) => setLocalDraft(event.target.value)}
+          onChange={(event) => {
+            setHasText(Boolean(event.target.value.trim()));
+            scheduleResize();
+          }}
           onKeyDown={handleKeyDown}
           onCompositionStart={() => {
             composingRef.current = true;
