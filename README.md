@@ -19,7 +19,7 @@ npm run build
 
 ### GitHub Autobuild Release
 
-每次分支提交都会触发 GitHub Actions 构建，并替换 GitHub Release 中固定的 `Autobuild` 版本。Release 提供 `side-agent-runtime-autobuild.zip`，解压后选择包含 `manifest.json` 的目录即可在 `chrome://extensions` 中加载。
+每次 `master` 分支提交都会触发 GitHub Actions 构建，并替换 GitHub Release 中固定的 `Autobuild` 版本。Release 提供 `side-agent-runtime-autobuild.zip`，解压后选择包含 `manifest.json` 的目录即可在 `chrome://extensions` 中加载。
 
 Chrome 不允许未经过 Chrome Web Store 或企业策略签名的扩展绕过开发者模式直接安装，因此 Autobuild 使用标准的可加载扩展 ZIP，并同时提供 SHA-256 校验文件。
 

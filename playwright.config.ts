@@ -4,8 +4,9 @@ export default defineConfig({
   testDir: "./e2e",
   timeout: 60_000,
   fullyParallel: false,
-  reporter: "list",
+  reporter: [["list"], ["html", { outputFolder: "playwright-report", open: "never" }]],
   use: {
     headless: true,
+    trace: "retain-on-failure",
   },
 });

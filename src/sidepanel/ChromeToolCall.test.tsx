@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { createChromeToolProviderMetadata } from "./chrome-tool-metadata";
 import { ChromeToolCall } from "./ChromeToolCall";
 
-function renderChromeTool(providerMetadata?: unknown): string {
+function renderChromeTool(providerMetadata?: unknown, result: unknown = { ok: true }): string {
   const part = {
     toolName: "chrome",
     toolCallId: "call-tabs",
@@ -13,7 +13,7 @@ function renderChromeTool(providerMetadata?: unknown): string {
     providerMetadata,
     status: { type: "complete" },
     isError: false,
-    result: { ok: true },
+    result,
     addResult: () => undefined,
     resume: () => undefined,
     respondToApproval: () => undefined,
@@ -47,5 +47,17 @@ describe("ChromeToolCall", () => {
     expect(summary).not.toContain("chrome");
     expect(summary).not.toContain("Chrome API");
     expect(summary).not.toContain("未知");
+  });
+
+  it("renders a resolved Chrome failure envelope as an error", () => {
+    const markup = renderChromeTool(undefined, {
+      ok: false,
+      error: { name: "Error", message: "Chrome API path not found: tabs.noSuchMethod" },
+    });
+
+    expect(markup).toContain('class="activity error"');
+    expect(markup).toContain('<span class="activity-status">error</span>');
+    expect(markup).toContain("Chrome API path not found: tabs.noSuchMethod");
+    expect(markup).not.toContain('<span class="activity-status">complete</span>');
   });
 });

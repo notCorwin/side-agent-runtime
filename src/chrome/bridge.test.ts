@@ -31,8 +31,20 @@ class FakePort {
 
 function fakeChrome() {
   const onUpdated = new FakeEvent();
+  const onDetach = new FakeEvent();
   const port = new FakePort();
   const debuggerCalls: string[] = [];
+  const attach = vi.fn(async () => {
+    debuggerCalls.push("attach");
+  });
+  const sendCommand = vi.fn(async (_session: unknown, command: string, params: unknown) => ({
+    command,
+    params,
+    result: "ok",
+  }));
+  const detach = vi.fn(async () => {
+    debuggerCalls.push("detach");
+  });
   const callbackApi = vi.fn((value: string, callback: (result: unknown) => void) => {
     callback({ value });
   });
@@ -52,17 +64,22 @@ function fakeChrome() {
     },
     callbackApi,
     debugger: {
-      attach: vi.fn(async () => debuggerCalls.push("attach")),
-      sendCommand: vi.fn(async (_session: unknown, command: string, params: unknown) => ({
-        command,
-        params,
-        result: "ok",
-      })),
-      detach: vi.fn(async () => debuggerCalls.push("detach")),
+      attach,
+      sendCommand,
+      detach,
+      onDetach,
     },
   };
 
-  return { chromeApi, onUpdated, port, debuggerCalls, callbackApi };
+  return { chromeApi, onUpdated, onDetach, port, debuggerCalls, callbackApi, attach, sendCommand, detach };
+}
+
+function deferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  const promise = new Promise<T>((resolvePromise) => {
+    resolve = resolvePromise;
+  });
+  return { promise, resolve };
 }
 
 describe("ChromeBridge", () => {
@@ -205,6 +222,112 @@ describe("ChromeBridge", () => {
       ok: true,
       value: { detached: true, tabId: 7 },
     });
+    expect(fake.debuggerCalls).toEqual(["attach", "detach"]);
+  });
+
+  it("only attaches once for concurrent sends to one tab", async () => {
+    const fake = fakeChrome();
+    const bridge = new ChromeBridge({ chromeApi: fake.chromeApi as never });
+
+    const results = await Promise.all([
+      bridge.execute({ operation: "cdp", action: "send", tabId: 7, command: "Runtime.enable" }),
+      bridge.execute({ operation: "cdp", action: "send", tabId: 7, command: "Page.enable" }),
+    ]);
+
+    expect(results.every((result) => result.ok)).toBe(true);
+    expect(fake.attach).toHaveBeenCalledTimes(1);
+    expect(fake.sendCommand).toHaveBeenCalledTimes(2);
+  });
+
+  it("makes repeated explicit attaches idempotent", async () => {
+    const fake = fakeChrome();
+    const bridge = new ChromeBridge({ chromeApi: fake.chromeApi as never });
+
+    await bridge.execute({ operation: "cdp", action: "attach", tabId: 7 });
+    await bridge.execute({ operation: "cdp", action: "attach", tabId: 7 });
+
+    expect(fake.attach).toHaveBeenCalledTimes(1);
+  });
+
+  it("reattaches after an external debugger detach", async () => {
+    const fake = fakeChrome();
+    const bridge = new ChromeBridge({ chromeApi: fake.chromeApi as never });
+    const sendCommand = fake.sendCommand;
+
+    await bridge.execute({ operation: "cdp", action: "send", tabId: 7, command: "Runtime.enable" });
+    fake.onDetach.emit({ tabId: 7 }, "target_closed");
+    await bridge.execute({ operation: "cdp", action: "send", tabId: 7, command: "Runtime.enable" });
+
+    expect(fake.attach).toHaveBeenCalledTimes(2);
+    expect(sendCommand).toHaveBeenCalledTimes(2);
+  });
+
+  it("retries one send after Chrome reports a stale debugger session", async () => {
+    const fake = fakeChrome();
+    const bridge = new ChromeBridge({ chromeApi: fake.chromeApi as never });
+    fake.sendCommand.mockRejectedValueOnce(new Error("Debugger is not attached to the target"));
+
+    const result = await bridge.execute({
+      operation: "cdp",
+      action: "send",
+      tabId: 7,
+      command: "Runtime.enable",
+    });
+
+    expect(result.ok).toBe(true);
+    expect(fake.attach).toHaveBeenCalledTimes(2);
+    expect(fake.sendCommand).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not publish a late attach after abort and disposal", async () => {
+    const fake = fakeChrome();
+    const bridge = new ChromeBridge({ chromeApi: fake.chromeApi as never });
+    const attachStarted = deferred<void>();
+    const releaseAttach = deferred<void>();
+    fake.attach.mockImplementation(async () => {
+      attachStarted.resolve();
+      await releaseAttach.promise;
+      fake.debuggerCalls.push("attach");
+    });
+    const controller = new AbortController();
+    const pending = bridge.execute(
+      { operation: "cdp", action: "send", tabId: 7, command: "Runtime.enable" },
+      controller.signal,
+    );
+
+    await attachStarted.promise;
+    controller.abort();
+    bridge.dispose();
+    releaseAttach.resolve();
+
+    await expect(pending).rejects.toMatchObject({ name: "AbortError" });
+    expect(fake.sendCommand).not.toHaveBeenCalled();
+    expect(fake.debuggerCalls).toEqual(["attach", "detach"]);
+  });
+
+  it("does not publish a late send after abort and disposal", async () => {
+    const fake = fakeChrome();
+    const bridge = new ChromeBridge({ chromeApi: fake.chromeApi as never });
+    const sendStarted = deferred<void>();
+    const releaseSend = deferred<void>();
+    fake.sendCommand.mockImplementation(async () => {
+      sendStarted.resolve();
+      await releaseSend.promise;
+      return { command: "Runtime.enable", params: undefined, result: "late" };
+    });
+    const controller = new AbortController();
+    const pending = bridge.execute(
+      { operation: "cdp", action: "send", tabId: 7, command: "Runtime.enable" },
+      controller.signal,
+    );
+
+    await sendStarted.promise;
+    controller.abort();
+    bridge.dispose();
+    releaseSend.resolve();
+
+    await expect(pending).rejects.toMatchObject({ name: "AbortError" });
+    expect(fake.sendCommand).toHaveBeenCalledTimes(1);
     expect(fake.debuggerCalls).toEqual(["attach", "detach"]);
   });
 

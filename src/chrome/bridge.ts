@@ -11,6 +11,13 @@ type DebuggerSession = {
   sessionId?: string;
 };
 
+type DebuggerApi = {
+  attach(debuggee: DebuggerSession, version: string): Promise<void>;
+  detach(debuggee: DebuggerSession): Promise<void>;
+  sendCommand(debuggee: DebuggerSession, command: string, params?: unknown): Promise<unknown>;
+  onDetach?: ChromeEvent;
+};
+
 type ChromeRuntime = typeof chrome & {
   runtime?: typeof chrome.runtime;
 };
@@ -26,6 +33,11 @@ function asObject(value: unknown): Record<string, unknown> {
 
 function isAbortError(error: unknown): boolean {
   return error instanceof DOMException && error.name === "AbortError";
+}
+
+function isDebuggerDetachedError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return /(?:debugger|target).*\b(?:not attached|detached)\b|\bnot attached\b/i.test(message);
 }
 
 function throwIfAborted(signal?: AbortSignal): void {
@@ -75,12 +87,30 @@ export class ChromeBridge {
 
   private readonly chromeApi: ChromeRuntime;
   private readonly debuggerSessions = new Map<number, DebuggerSession>();
+  private readonly pendingAttaches = new Map<number, Promise<DebuggerSession>>();
   private readonly pendingWaits = new Set<() => void>();
+  private readonly debuggerDetachEvent?: ChromeEvent;
+  private readonly handleDebuggerDetach = (...args: unknown[]): void => {
+    const source = args[0];
+    if (!source || typeof source !== "object") return;
+
+    const tabId = (source as { tabId?: unknown }).tabId;
+    if (typeof tabId !== "number") return;
+    const current = this.debuggerSessions.get(tabId);
+    if (!current) return;
+
+    const sessionId = (source as { sessionId?: unknown }).sessionId;
+    if (typeof sessionId === "string" && current.sessionId && sessionId !== current.sessionId) return;
+    this.debuggerSessions.delete(tabId);
+  };
   private disposed = false;
 
   constructor(options: ChromeBridgeOptions = {}) {
     this.chromeApi = options.chromeApi ?? (globalThis.chrome as ChromeRuntime);
     if (!this.chromeApi) throw new Error("Chrome extension APIs are unavailable");
+
+    this.debuggerDetachEvent = (this.chromeApi as { debugger?: DebuggerApi }).debugger?.onDetach;
+    this.debuggerDetachEvent?.addListener(this.handleDebuggerDetach);
   }
 
   async execute(input: ChromeToolInput, signal?: AbortSignal): Promise<ChromeToolOutput> {
@@ -118,16 +148,19 @@ export class ChromeBridge {
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
+    this.debuggerDetachEvent?.removeListener(this.handleDebuggerDetach);
     for (const cancel of this.pendingWaits) cancel();
     this.pendingWaits.clear();
 
-    const debuggerApi = (this.chromeApi as any).debugger;
+    const debuggerApi = (this.chromeApi as { debugger?: DebuggerApi }).debugger;
+    const sessions = [...this.debuggerSessions.values()];
     if (debuggerApi?.detach) {
-      for (const session of this.debuggerSessions.values()) {
-        void Promise.resolve(debuggerApi.detach(session)).catch(() => undefined);
+      for (const session of sessions) {
+        void this.detachAfterDispose(debuggerApi, session);
       }
     }
     this.debuggerSessions.clear();
+    this.pendingAttaches.clear();
     this.handles.clear();
   }
 
@@ -251,40 +284,119 @@ export class ChromeBridge {
 
   private async cdp(input: Extract<ChromeToolInput, { operation: "cdp" }>, signal?: AbortSignal): Promise<unknown> {
     if (typeof input.tabId !== "number") throw new Error("cdp requires tabId");
-    const debuggerApi = (this.chromeApi as any).debugger;
+    const debuggerApi = (this.chromeApi as { debugger?: DebuggerApi }).debugger;
     if (!debuggerApi) throw new Error("chrome.debugger is unavailable or not permitted");
     const session: DebuggerSession = { tabId: input.tabId, ...(input.sessionId ? { sessionId: input.sessionId } : {}) };
+    this.assertActive(signal);
 
     if (input.action === "attach") {
-      await debuggerApi.attach({ tabId: input.tabId }, "1.3");
-      this.debuggerSessions.set(input.tabId, session);
-      return { attached: true, ...session };
+      const attached = await this.attachSession(debuggerApi, session, signal);
+      return { attached: true, ...attached };
     }
 
     if (input.action === "detach") {
-      await debuggerApi.detach(session);
+      try {
+        await debuggerApi.detach(session);
+      } catch (error) {
+        throwIfAborted(signal);
+        throw error;
+      }
+      this.assertActive(signal);
       this.debuggerSessions.delete(input.tabId);
       return { detached: true, ...session };
     }
 
     if (!input.command) throw new Error("cdp send requires command");
+    const activeSession = await this.attachSession(debuggerApi, session, signal);
+    return this.sendWithRecovery(debuggerApi, activeSession, input, signal);
+  }
+
+  private assertActive(signal?: AbortSignal): void {
     throwIfAborted(signal);
-    if (!this.debuggerSessions.has(input.tabId)) {
-      await debuggerApi.attach({ tabId: input.tabId }, "1.3");
-      this.debuggerSessions.set(input.tabId, {
-        tabId: input.tabId,
-        ...(input.sessionId ? { sessionId: input.sessionId } : {}),
-      });
-    }
-    const activeSession: DebuggerSession = {
-      ...this.debuggerSessions.get(input.tabId)!,
-      ...(input.sessionId ? { sessionId: input.sessionId } : {}),
-    };
-    if (input.params === undefined) {
-      return debuggerApi.sendCommand(activeSession, input.command);
+    if (this.disposed) throw new Error("Chrome bridge has been disposed");
+  }
+
+  private async attachSession(
+    debuggerApi: DebuggerApi,
+    requestedSession: DebuggerSession,
+    signal?: AbortSignal,
+  ): Promise<DebuggerSession> {
+    this.assertActive(signal);
+    const current = this.debuggerSessions.get(requestedSession.tabId);
+    if (current) {
+      return { ...current, ...(requestedSession.sessionId ? { sessionId: requestedSession.sessionId } : {}) };
     }
 
-    const params = resolveHandles(input.params, this.handles);
-    return debuggerApi.sendCommand(activeSession, input.command, params);
+    let pending = this.pendingAttaches.get(requestedSession.tabId);
+    if (!pending) {
+      const session: DebuggerSession = { tabId: requestedSession.tabId };
+      pending = (async () => {
+        await debuggerApi.attach(session, "1.3");
+        if (this.disposed) {
+          await Promise.resolve(debuggerApi.detach(session)).catch(() => undefined);
+          throw new Error("Chrome bridge has been disposed");
+        }
+        this.debuggerSessions.set(session.tabId, session);
+        return session;
+      })();
+      this.pendingAttaches.set(requestedSession.tabId, pending);
+    }
+
+    try {
+      const attached = await pending;
+      this.assertActive(signal);
+      return { ...attached, ...(requestedSession.sessionId ? { sessionId: requestedSession.sessionId } : {}) };
+    } catch (error) {
+      throwIfAborted(signal);
+      throw error;
+    } finally {
+      if (this.pendingAttaches.get(requestedSession.tabId) === pending) {
+        this.pendingAttaches.delete(requestedSession.tabId);
+      }
+    }
+  }
+
+  private async sendWithRecovery(
+    debuggerApi: DebuggerApi,
+    session: DebuggerSession,
+    input: Extract<ChromeToolInput, { operation: "cdp"; action: "send" }>,
+    signal?: AbortSignal,
+  ): Promise<unknown> {
+    try {
+      return await this.sendCommand(debuggerApi, session, input, signal);
+    } catch (error) {
+      this.assertActive(signal);
+      const current = this.debuggerSessions.get(session.tabId);
+      const stale = !current || isDebuggerDetachedError(error);
+      if (!stale) throw error;
+
+      if (current === session || !session.sessionId || !current?.sessionId || current.sessionId === session.sessionId) {
+        this.debuggerSessions.delete(session.tabId);
+      }
+      const recovered = await this.attachSession(debuggerApi, session, signal);
+      return this.sendCommand(debuggerApi, recovered, input, signal);
+    }
+  }
+
+  private async sendCommand(
+    debuggerApi: DebuggerApi,
+    session: DebuggerSession,
+    input: Extract<ChromeToolInput, { operation: "cdp"; action: "send" }>,
+    signal?: AbortSignal,
+  ): Promise<unknown> {
+    const result = input.params === undefined
+      ? await debuggerApi.sendCommand(session, input.command)
+      : await debuggerApi.sendCommand(session, input.command, resolveHandles(input.params, this.handles));
+    this.assertActive(signal);
+    return result;
+  }
+
+  private async detachAfterDispose(debuggerApi: DebuggerApi, session: DebuggerSession): Promise<void> {
+    try {
+      await debuggerApi.detach(session);
+      if (this.disposed) return;
+    } catch {
+      return;
+    }
   }
 }

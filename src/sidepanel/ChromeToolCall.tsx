@@ -18,6 +18,10 @@ function statusLabel(status: "running" | "complete" | "error"): string {
   return "complete";
 }
 
+function isChromeFailure(value: unknown): value is { ok: false; error: unknown } {
+  return Boolean(value && typeof value === "object" && (value as { ok?: unknown }).ok === false);
+}
+
 export const ChromeToolCall: ToolCallMessagePartComponent = (part) => {
   if (part.toolName !== "chrome") return <ToolFallback {...part} />;
 
@@ -25,12 +29,15 @@ export const ChromeToolCall: ToolCallMessagePartComponent = (part) => {
   const label = meta ? formatToolLabel(meta) : "";
 
   const running = part.status.type === "running";
-  const isError = part.isError === true || part.status.type === "incomplete";
+  const structuredFailure = isChromeFailure(part.result);
+  const isError = part.isError === true || part.status.type === "incomplete" || structuredFailure;
   const status = running ? "running" : isError ? "error" : "complete";
   const result = part.result;
   const error = isError
     ? part.status.type === "incomplete"
       ? part.status.error ?? result
+      : structuredFailure
+        ? result.error
       : result
     : undefined;
 
